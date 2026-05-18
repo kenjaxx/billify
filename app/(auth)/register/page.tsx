@@ -12,21 +12,27 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleRegister = async () => {
-    setLoading(true)
-    setError('')
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { name } }
+const handleRegister = async () => {
+  setLoading(true)
+  setError('')
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { name } }
+  })
+  if (error) {
+    setError(error.message)
+  } else if (data.user) {
+    // Sync user to our database
+    await fetch('/api/auth/sync-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: data.user.id, email, name }),
     })
-    if (error) {
-      setError(error.message)
-    } else {
-      router.push('/dashboard')
-    }
-    setLoading(false)
+    router.push('/dashboard')
   }
+  setLoading(false)
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

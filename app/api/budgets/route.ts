@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/get-user'
 
 export async function GET() {
   try {
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
     const now = new Date()
     const budgets = await prisma.budget.findMany({
       where: {
-        userId: 'temp-user-id',
+        userId: user.id,
         month: now.getMonth() + 1,
         year: now.getFullYear(),
       },
@@ -21,12 +25,15 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
     const body = await req.json()
     const now = new Date()
 
     const existing = await prisma.budget.findFirst({
       where: {
-        userId: 'temp-user-id',
+        userId: user.id,
         categoryId: body.categoryId,
         month: now.getMonth() + 1,
         year: now.getFullYear(),
@@ -46,7 +53,7 @@ export async function POST(req: Request) {
         amount: body.amount,
         month: now.getMonth() + 1,
         year: now.getFullYear(),
-        userId: 'temp-user-id',
+        userId: user.id,
         categoryId: body.categoryId,
       },
     })

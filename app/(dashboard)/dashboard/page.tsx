@@ -1,5 +1,7 @@
 import { FileText, Wallet, AlertCircle, CheckCircle } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
+import { createSupabaseServer } from '@/lib/supabase-server'
+import { redirect } from 'next/navigation'
 
 export default async function DashboardPage() {
   const now = new Date()
@@ -7,6 +9,11 @@ export default async function DashboardPage() {
   const year = now.getFullYear()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const supabase = await createSupabaseServer()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  
 
   const bills = await prisma.bill.findMany({
     where: {

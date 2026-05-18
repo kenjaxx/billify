@@ -1,23 +1,24 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/get-user'
 
 export async function GET() {
   try {
-    const now = new Date()
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // Last 6 months of bills
+    const now = new Date()
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
 
     const bills = await prisma.bill.findMany({
       where: {
-        userId: 'temp-user-id',
+        userId: user.id,
         dueDate: { gte: sixMonthsAgo },
       },
       include: { category: true },
       orderBy: { dueDate: 'asc' },
     })
 
-    // Group by month
     const monthlyData: Record<string, number> = {}
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
@@ -33,12 +34,8 @@ export async function GET() {
       }
     })
 
-    const monthly = Object.entries(monthlyData).map(([month, total]) => ({
-      month,
-      total,
-    }))
+    const monthly = Object.entries(monthlyData).map(([month, total]) => ({ month, total }))
 
-    // Group by category
     const categoryData: Record<string, { name: string; icon: string | null; total: number }> = {}
     bills.forEach(bill => {
       const cat = bill.category.name
@@ -49,8 +46,6 @@ export async function GET() {
     })
 
     const byCategory = Object.values(categoryData).sort((a, b) => b.total - a.total)
-
-    // Summary
     const totalSpent = bills.reduce((sum, b) => sum + b.amount, 0)
     const topCategory = byCategory[0] ?? null
 

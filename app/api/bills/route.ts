@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/get-user'
 
 export async function GET() {
   try {
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
     const bills = await prisma.bill.findMany({
+      where: { userId: user.id },
       include: { category: true },
       orderBy: { dueDate: 'asc' },
     })
@@ -16,6 +21,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
     const body = await req.json()
     const bill = await prisma.bill.create({
       data: {
@@ -25,7 +33,7 @@ export async function POST(req: Request) {
         isRecurring: body.isRecurring,
         notes: body.notes,
         status: 'UNPAID',
-        userId: 'temp-user-id',
+        userId: user.id,
         categoryId: body.categoryId,
       },
     })

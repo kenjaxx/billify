@@ -11,17 +11,20 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+
+  
+
   const handleLogin = async () => {
-    setLoading(true)
-    setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError(error.message)
-    } else {
-      router.push('/dashboard')
-    }
-    setLoading(false)
+  setLoading(true)
+  setError('')
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) {
+    setError(error.message)
+  } else if (data.user) {
+    router.push('/dashboard')
   }
+  setLoading(false)
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
