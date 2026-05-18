@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, FileText, Wallet, BarChart2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 const navItems = [
   { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
@@ -16,22 +15,44 @@ export default function BottomNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white dark:bg-gray-950 border-t flex justify-around items-center h-16 px-2">
-      {navItems.map(({ label, href, icon: Icon }) => (
-        <Link
-          key={href}
-          href={href}
-          className={cn(
-            'flex flex-col items-center gap-1 text-xs px-3 py-1 rounded-lg transition-colors',
-            pathname === href
-              ? 'text-blue-600 dark:text-blue-400'
-              : 'text-gray-400 hover:text-gray-600'
-          )}
-        >
-          <Icon size={20} />
-          {label}
-        </Link>
-      ))}
+    <nav style={{
+      position: 'fixed',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 50,
+      background: 'var(--bg-tertiary)',
+      borderTop: '0.5px solid var(--border)',
+      display: 'flex',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      height: '64px',
+      padding: '0 8px',
+    }} className="md:hidden">
+      {navItems.map(({ label, href, icon: Icon }) => {
+        const active = pathname === href
+        return (
+          <Link
+            key={href}
+            href={href}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '10px',
+              color: active ? '#60a5fa' : 'rgba(255,255,255,0.3)',
+              textDecoration: 'none',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              background: active ? 'rgba(59,130,246,0.1)' : 'transparent',
+            }}
+          >
+            <Icon size={20} />
+            {label}
+          </Link>
+        )
+      })}
     </nav>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, FileText } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import BillList from '../bills/BillList'
 import AddBillModal from '../bills/AddBillModal'
 
@@ -15,35 +15,37 @@ export default function BillsPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div style={{ maxWidth: '900px', margin: '0 auto' }}>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px' }}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bills</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+          <h1 style={{ fontSize: '22px', fontWeight: '500', color: '#fff' }}>Bills</h1>
+          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginTop: '4px' }}>
             Manage and track all your bills
           </p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            background: '#3b82f6', color: '#fff', border: 'none',
+            padding: '9px 16px', borderRadius: '8px',
+            fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+          }}
         >
-          <Plus size={16} />
+          <Plus size={15} />
           Add Bill
         </button>
       </div>
 
-      {/* Bills List */}
       <BillList refresh={refresh} />
 
-      {/* Add Bill Modal */}
       <AddBillModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleBillAdded}
       />
-
     </div>
   )
 }

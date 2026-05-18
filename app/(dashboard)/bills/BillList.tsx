@@ -14,42 +14,29 @@ type Bill = {
 }
 
 const statusConfig = {
-  PAID: {
-    label: 'Paid',
-    icon: CheckCircle,
-    class: 'bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-400',
-  },
-  UNPAID: {
-    label: 'Unpaid',
-    icon: Clock,
-    class: 'bg-yellow-50 text-yellow-600 dark:bg-yellow-950 dark:text-yellow-400',
-  },
-  OVERDUE: {
-    label: 'Overdue',
-    icon: AlertCircle,
-    class: 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400',
-  },
+  PAID: { label: 'Paid', icon: CheckCircle, color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+  UNPAID: { label: 'Unpaid', icon: Clock, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
+  OVERDUE: { label: 'Overdue', icon: AlertCircle, color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
 }
+
+const filters = ['ALL', 'UNPAID', 'PAID', 'OVERDUE'] as const
 
 export default function BillList({ refresh }: { refresh: number }) {
   const [bills, setBills] = useState<Bill[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'ALL' | 'PAID' | 'UNPAID' | 'OVERDUE'>('ALL')
+  const [filter, setFilter] = useState<typeof filters[number]>('ALL')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchBills()
-  }, [refresh])
+  useEffect(() => { fetchBills() }, [refresh])
 
   const fetchBills = async () => {
     setLoading(true)
     try {
       const res = await fetch('/api/bills')
       if (!res.ok) throw new Error('Failed to fetch')
-      const data = await res.json()
-      setBills(data)
+      setBills(await res.json())
     } catch (err) {
-      console.error('Error fetching bills:', err)
+      console.error(err)
       setBills([])
     } finally {
       setLoading(false)
@@ -58,27 +45,21 @@ export default function BillList({ refresh }: { refresh: number }) {
 
   const handleMarkPaid = async (id: string) => {
     setActionLoading(id)
-    try {
-      await fetch(`/api/bills/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'PAID' }),
-      })
-      await fetchBills()
-    } finally {
-      setActionLoading(null)
-    }
+    await fetch(`/api/bills/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'PAID' }),
+    })
+    await fetchBills()
+    setActionLoading(null)
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this bill?')) return
+    if (!confirm('Delete this bill?')) return
     setActionLoading(id)
-    try {
-      await fetch(`/api/bills/${id}`, { method: 'DELETE' })
-      await fetchBills()
-    } finally {
-      setActionLoading(null)
-    }
+    await fetch(`/api/bills/${id}`, { method: 'DELETE' })
+    await fetchBills()
+    setActionLoading(null)
   }
 
   const filtered = filter === 'ALL' ? bills : bills.filter(b => b.status === filter)
@@ -86,16 +67,22 @@ export default function BillList({ refresh }: { refresh: number }) {
   return (
     <div>
       {/* Filters */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {(['ALL', 'UNPAID', 'PAID', 'OVERDUE'] as const).map(f => (
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        {filters.map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              filter === f
-                ? 'bg-blue-600 text-white'
-                : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50'
-            }`}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              border: filter === f ? 'none' : '0.5px solid rgba(255,255,255,0.1)',
+              background: filter === f ? '#3b82f6' : 'transparent',
+              color: filter === f ? '#fff' : 'rgba(255,255,255,0.4)',
+              transition: 'all 0.15s',
+            }}
           >
             {f === 'ALL' ? 'All' : statusConfig[f].label}
           </button>
@@ -103,77 +90,106 @@ export default function BillList({ refresh }: { refresh: number }) {
       </div>
 
       {/* List */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden">
+      <div style={{
+        background: '#161b27',
+        border: '0.5px solid rgba(255,255,255,0.06)',
+        borderRadius: '12px',
+        overflow: 'hidden',
+      }}>
         {loading ? (
-          <div className="flex justify-center items-center py-16">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '64px' }}>
+            <div style={{
+              width: '24px', height: '24px',
+              border: '2px solid rgba(59,130,246,0.3)',
+              borderTop: '2px solid #3b82f6',
+              borderRadius: '50%',
+              animation: 'spin 0.7s linear infinite',
+            }} />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <FileText size={36} className="text-gray-300 mb-3" />
-            <p className="text-gray-400 text-sm">No bills found</p>
-            <p className="text-gray-300 text-xs mt-1">Add a bill using the button above</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px', gap: '8px' }}>
+            <FileText size={36} color="rgba(255,255,255,0.1)" />
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)' }}>No bills found</p>
+            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.15)' }}>Add a bill using the button above</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {filtered.map(bill => {
-              const status = statusConfig[bill.status]
-              const StatusIcon = status.icon
-              const isLoading = actionLoading === bill.id
-              return (
-                <div
-                  key={bill.id}
-                  className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-base">
-                      {bill.category.icon ?? '📄'}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{bill.title}</p>
-                      <p className="text-xs text-gray-400">
-                        Due {format(new Date(bill.dueDate), 'MMM d, yyyy')} · {bill.category.name}
-                      </p>
-                    </div>
+          filtered.map((bill, i) => {
+            const status = statusConfig[bill.status]
+            const StatusIcon = status.icon
+            const isLoading = actionLoading === bill.id
+            return (
+              <div
+                key={bill.id}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '14px 20px',
+                  borderBottom: i < filtered.length - 1 ? '0.5px solid rgba(255,255,255,0.04)' : 'none',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '36px', height: '36px', borderRadius: '8px',
+                    background: 'rgba(255,255,255,0.05)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px',
+                  }}>
+                    {bill.category.icon ?? '📄'}
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${status.class}`}>
-                      <StatusIcon size={11} />
-                      {status.label}
-                    </span>
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white min-w-[70px] text-right">
-                      ₱{bill.amount.toLocaleString()}
-                    </span>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 ml-2">
-                      {bill.status !== 'PAID' && (
-                        <button
-                          onClick={() => handleMarkPaid(bill.id)}
-                          disabled={isLoading}
-                          title="Mark as paid"
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-950 transition-colors disabled:opacity-50"
-                        >
-                          <CheckCheck size={15} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDelete(bill.id)}
-                        disabled={isLoading}
-                        title="Delete bill"
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-50"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
+                  <div>
+                    <p style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.9)' }}>{bill.title}</p>
+                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
+                      Due {format(new Date(bill.dueDate), 'MMM d, yyyy')} · {bill.category.name}
+                    </p>
                   </div>
                 </div>
-              )
-            })}
-          </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                    fontSize: '11px', fontWeight: '500',
+                    padding: '4px 10px', borderRadius: '99px',
+                    background: status.bg, color: status.color,
+                  }}>
+                    <StatusIcon size={11} />
+                    {status.label}
+                  </span>
+                  <span style={{ fontSize: '13px', fontWeight: '500', color: '#fff', minWidth: '80px', textAlign: 'right' }}>
+                    ₱{bill.amount.toLocaleString()}
+                  </span>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {bill.status !== 'PAID' && (
+                      <button
+                        onClick={() => handleMarkPaid(bill.id)}
+                        disabled={isLoading}
+                        title="Mark as paid"
+                        style={{
+                          width: '30px', height: '30px', borderRadius: '6px', border: 'none',
+                          background: 'transparent', cursor: 'pointer', display: 'flex',
+                          alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)',
+                        }}
+                      >
+                        <CheckCheck size={14} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(bill.id)}
+                      disabled={isLoading}
+                      title="Delete"
+                      style={{
+                        width: '30px', height: '30px', borderRadius: '6px', border: 'none',
+                        background: 'transparent', cursor: 'pointer', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)',
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })
         )}
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 }

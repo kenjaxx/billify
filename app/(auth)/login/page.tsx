@@ -11,50 +11,129 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-
-  
-
   const handleLogin = async () => {
-  setLoading(true)
-  setError('')
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) {
-    setError(error.message)
-  } else if (data.user) {
-    router.push('/dashboard')
+    setLoading(true)
+    setError('')
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      setError(error.message)
+    } else if (data.user) {
+      router.push('/dashboard')
+    }
+    setLoading(false)
   }
-  setLoading(false)
-}
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">Login to Billify</h1>
-        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full border p-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full border p-3 rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+    <div style={{
+      minHeight: '100vh',
+      background: '#0f1117',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px',
+    }}>
+      <div style={{
+        background: '#161b27',
+        border: '0.5px solid rgba(255,255,255,0.08)',
+        borderRadius: '16px',
+        padding: '36px',
+        width: '100%',
+        maxWidth: '380px',
+      }}>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: '500', color: '#fff', letterSpacing: '-0.5px' }}>
+            Bill<span style={{ color: '#3b82f6' }}>ify</span>
+          </h1>
+          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginTop: '6px' }}>
+            Sign in to your account
+          </p>
+        </div>
+
+        {error && (
+          <div style={{
+            background: 'rgba(248,113,113,0.1)',
+            border: '0.5px solid rgba(248,113,113,0.2)',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            fontSize: '13px',
+            color: '#f87171',
+            marginBottom: '16px',
+          }}>
+            {error}
+          </div>
+        )}
+
+        {/* Email */}
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>
+            Email
+          </label>
+          <input
+            type="email"
+            placeholder="you@email.com"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            style={{
+              width: '100%',
+              background: '#0a0c10',
+              border: '0.5px solid rgba(255,255,255,0.08)',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              fontSize: '13px',
+              color: '#fff',
+              outline: 'none',
+            }}
+          />
+        </div>
+
+        {/* Password */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>
+            Password
+          </label>
+          <input
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()}
+            style={{
+              width: '100%',
+              background: '#0a0c10',
+              border: '0.5px solid rgba(255,255,255,0.08)',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              fontSize: '13px',
+              color: '#fff',
+              outline: 'none',
+            }}
+          />
+        </div>
+
+        {/* Button */}
         <button
           onClick={handleLogin}
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+          style={{
+            width: '100%',
+            background: loading ? 'rgba(59,130,246,0.5)' : '#3b82f6',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '11px',
+            fontSize: '14px',
+            fontWeight: '500',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            transition: 'background 0.15s',
+          }}
         >
-          {loading ? 'Logging in...' : 'Login'}
+          {loading ? 'Signing in...' : 'Sign in'}
         </button>
-        <p className="text-center text-sm mt-4 text-gray-500">
+
+        <p style={{ textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.3)', marginTop: '20px' }}>
           Don't have an account?{' '}
-          <a href="/register" className="text-blue-600 hover:underline">Register</a>
+          <a href="/register" style={{ color: '#60a5fa' }}>Register</a>
         </p>
       </div>
     </div>

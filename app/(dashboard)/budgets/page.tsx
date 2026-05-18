@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Plus, Wallet } from 'lucide-react'
-import SetBudgetModal from '../../../components/budgets/SetBudgetModal'
+import SetBudgetModal from '@/components/budgets/SetBudgetModal'
 
 type Budget = {
   id: string
@@ -10,11 +10,7 @@ type Budget = {
   category: { id: string; name: string; icon: string | null; color: string | null }
 }
 
-type Bill = {
-  amount: number
-  status: string
-  categoryId: string
-}
+type Bill = { amount: number; status: string; categoryId: string }
 
 export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<Budget[]>([])
@@ -26,125 +22,115 @@ export default function BudgetsPage() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
-      try {
-        const [budgetsRes, billsRes] = await Promise.all([
-          fetch('/api/budgets'),
-          fetch('/api/bills'),
-        ])
-        const budgetsData = await budgetsRes.json()
-        const billsData = await billsRes.json()
-        setBudgets(budgetsData)
-        setBills(billsData)
-      } finally {
-        setLoading(false)
-      }
+      const [b, bi] = await Promise.all([fetch('/api/budgets'), fetch('/api/bills')])
+      setBudgets(await b.json())
+      setBills(await bi.json())
+      setLoading(false)
     }
     fetchData()
   }, [refresh])
 
-  const getSpent = (categoryId: string) => {
-    return bills
-      .filter(b => b.categoryId === categoryId)
-      .reduce((sum, b) => sum + b.amount, 0)
-  }
+  const getSpent = (categoryId: string) =>
+    bills.filter(b => b.categoryId === categoryId).reduce((sum, b) => sum + b.amount, 0)
 
-  const getPercentage = (spent: number, budget: number) => {
-    return Math.min(Math.round((spent / budget) * 100), 100)
-  }
+  const getPct = (spent: number, budget: number) => Math.min(Math.round((spent / budget) * 100), 100)
 
-  const getBarColor = (pct: number) => {
-    if (pct >= 100) return 'bg-red-500'
-    if (pct >= 75) return 'bg-yellow-500'
-    return 'bg-green-500'
-  }
+  const getBarColor = (pct: number) => pct >= 100 ? '#f87171' : pct >= 75 ? '#fbbf24' : '#34d399'
 
   const now = new Date()
-  const monthName = now.toLocaleString('default', { month: 'long' })
 
   return (
-    <div className="max-w-3xl mx-auto">
-
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+    <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Budgets</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            {monthName} {now.getFullYear()} — spending limits per category
+          <h1 style={{ fontSize: '22px', fontWeight: '500', color: '#fff' }}>Budgets</h1>
+          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginTop: '4px' }}>
+            {now.toLocaleString('default', { month: 'long' })} {now.getFullYear()} — spending limits per category
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          <Plus size={16} />
-          Set Budget
+        <button onClick={() => setIsModalOpen(true)} style={{
+          display: 'flex', alignItems: 'center', gap: '6px',
+          background: '#3b82f6', color: '#fff', border: 'none',
+          padding: '9px 16px', borderRadius: '8px',
+          fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+        }}>
+          <Plus size={15} /> Set Budget
         </button>
       </div>
 
-      {/* Budget List */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden">
+      <div style={{
+        background: '#161b27',
+        border: '0.5px solid rgba(255,255,255,0.06)',
+        borderRadius: '12px',
+        overflow: 'hidden',
+      }}>
         {loading ? (
-          <div className="flex justify-center items-center py-16">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '64px' }}>
+            <div style={{
+              width: '24px', height: '24px',
+              border: '2px solid rgba(59,130,246,0.3)',
+              borderTop: '2px solid #3b82f6',
+              borderRadius: '50%',
+              animation: 'spin 0.7s linear infinite',
+            }} />
           </div>
         ) : budgets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Wallet size={36} className="text-gray-300 mb-3" />
-            <p className="text-gray-400 text-sm">No budgets set yet</p>
-            <p className="text-gray-300 text-xs mt-1">Set a budget limit per category</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px', gap: '8px' }}>
+            <Wallet size={36} color="rgba(255,255,255,0.1)" />
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)' }}>No budgets set yet</p>
+            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.15)' }}>Set a budget limit per category</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {budgets.map(budget => {
-              const spent = getSpent(budget.category.id)
-              const pct = getPercentage(spent, budget.amount)
-              const barColor = getBarColor(pct)
-              return (
-                <div key={budget.id} className="px-5 py-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{budget.category.icon ?? '📄'}</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {budget.category.name}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                        ₱{spent.toLocaleString()}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {' '}/ ₱{budget.amount.toLocaleString()}
-                      </span>
-                    </div>
+          budgets.map((budget, i) => {
+            const spent = getSpent(budget.category.id)
+            const pct = getPct(spent, budget.amount)
+            return (
+              <div key={budget.id} style={{
+                padding: '18px 20px',
+                borderBottom: i < budgets.length - 1 ? '0.5px solid rgba(255,255,255,0.04)' : 'none',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '18px' }}>{budget.category.icon ?? '📄'}</span>
+                    <span style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.85)' }}>
+                      {budget.category.name}
+                    </span>
                   </div>
-                  <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all ${barColor}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-xs text-gray-400">{pct}% used</span>
-                    <span className="text-xs text-gray-400">
-                      ₱{Math.max(budget.amount - spent, 0).toLocaleString()} left
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '500', color: '#fff' }}>
+                      ₱{spent.toLocaleString()}
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
+                      {' '}/ ₱{budget.amount.toLocaleString()}
                     </span>
                   </div>
                 </div>
-              )
-            })}
-          </div>
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '99px', height: '6px' }}>
+                  <div style={{
+                    height: '6px', borderRadius: '99px',
+                    width: `${pct}%`,
+                    background: getBarColor(pct),
+                    transition: 'width 0.3s ease',
+                  }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>{pct}% used</span>
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
+                    ₱{Math.max(budget.amount - spent, 0).toLocaleString()} left
+                  </span>
+                </div>
+              </div>
+            )
+          })
         )}
       </div>
 
-      {/* Set Budget Modal */}
       <SetBudgetModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={() => {
-          setRefresh(p => p + 1)
-          setIsModalOpen(false)
-        }}
+        onSuccess={() => { setRefresh(p => p + 1); setIsModalOpen(false) }}
       />
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 }

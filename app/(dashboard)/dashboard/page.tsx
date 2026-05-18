@@ -38,111 +38,112 @@ export default async function DashboardPage() {
   })
 
   const statCards = [
-    {
-      label: 'Total this month',
-      value: `₱${totalAmount.toLocaleString()}`,
-      icon: Wallet,
-      color: 'text-blue-600',
-      bg: 'bg-blue-50 dark:bg-blue-950',
-    },
-    {
-      label: 'Unpaid bills',
-      value: String(unpaidBills),
-      icon: AlertCircle,
-      color: 'text-red-500',
-      bg: 'bg-red-50 dark:bg-red-950',
-    },
-    {
-      label: 'Paid bills',
-      value: String(paidBills),
-      icon: CheckCircle,
-      color: 'text-green-500',
-      bg: 'bg-green-50 dark:bg-green-950',
-    },
-    {
-      label: 'Total bills',
-      value: String(totalBills),
-      icon: FileText,
-      color: 'text-purple-500',
-      bg: 'bg-purple-50 dark:bg-purple-950',
-    },
+    { label: 'Total this month', value: `₱${totalAmount.toLocaleString()}`, icon: Wallet, color: '#60a5fa', bg: 'rgba(59,130,246,0.1)' },
+    { label: 'Unpaid bills', value: String(unpaidBills), icon: AlertCircle, color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
+    { label: 'Paid bills', value: String(paidBills), icon: CheckCircle, color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+    { label: 'Total bills', value: String(totalBills), icon: FileText, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
   ]
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+      <div style={{ marginBottom: '28px' }}>
+        <h1 style={{ fontSize: '22px', fontWeight: '500', color: '#fff' }}>Dashboard</h1>
+        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginTop: '4px' }}>
           {monthName} {year} — overview of your bills
         </p>
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
         {statCards.map(({ label, value, icon: Icon, color, bg }) => (
-          <div
-            key={label}
-            className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-4 flex flex-col gap-3"
-          >
-            <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center`}>
-              <Icon size={18} className={color} />
+          <div key={label} style={{
+            background: '#161b27',
+            border: '0.5px solid rgba(255,255,255,0.06)',
+            borderRadius: '12px',
+            padding: '16px',
+          }}>
+            <div style={{
+              width: '34px', height: '34px', borderRadius: '8px',
+              background: bg, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', marginBottom: '12px',
+            }}>
+              <Icon size={16} color={color} />
             </div>
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
-              <p className="text-xl font-semibold text-gray-900 dark:text-white">{value}</p>
-            </div>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginBottom: '4px' }}>{label}</p>
+            <p style={{ fontSize: '20px', fontWeight: '500', color: '#fff' }}>{value}</p>
           </div>
         ))}
       </div>
 
-      {/* Upcoming Bills */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-5 mb-6">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
-          Upcoming bills
-        </h2>
-        {upcomingBills.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <FileText size={36} className="text-gray-300 mb-3" />
-            <p className="text-gray-400 text-sm">No upcoming bills</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {upcomingBills.map(bill => (
-              <div key={bill.id} className="flex items-center justify-between py-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-sm">
-                    {bill.category.icon ?? '📄'}
+      {/* Bottom grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '12px' }}>
+
+        {/* Upcoming Bills */}
+        <div style={{
+          background: '#161b27',
+          border: '0.5px solid rgba(255,255,255,0.06)',
+          borderRadius: '12px',
+          padding: '20px',
+        }}>
+          <h2 style={{ fontSize: '14px', fontWeight: '500', color: '#fff', marginBottom: '16px' }}>
+            Upcoming bills
+          </h2>
+          {upcomingBills.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 0', gap: '8px' }}>
+              <FileText size={32} color="rgba(255,255,255,0.1)" />
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)' }}>No upcoming bills</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+              {upcomingBills.map((bill, i) => (
+                <div key={bill.id} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 0',
+                  borderBottom: i < upcomingBills.length - 1 ? '0.5px solid rgba(255,255,255,0.04)' : 'none',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '8px',
+                      background: 'rgba(255,255,255,0.05)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px',
+                    }}>
+                      {bill.category.icon ?? '📄'}
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.85)' }}>{bill.title}</p>
+                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
+                        Due {new Date(bill.dueDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{bill.title}</p>
-                    <p className="text-xs text-gray-400">
-                      Due {new Date(bill.dueDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}
-                    </p>
-                  </div>
+                  <p style={{ fontSize: '13px', fontWeight: '500', color: '#fff' }}>
+                    ₱{bill.amount.toLocaleString()}
+                  </p>
                 </div>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                  ₱{bill.amount.toLocaleString()}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Monthly Spending */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-5">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
-          Monthly spending
-        </h2>
-        <div className="flex flex-col items-center justify-center py-10 text-center">
-          <Wallet size={36} className="text-gray-300 mb-3" />
-          <p className="text-gray-400 text-sm">Charts coming soon</p>
-          <p className="text-gray-300 text-xs mt-1">Will be available in the Reports page</p>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
 
+        {/* Monthly Spending placeholder */}
+        <div style={{
+          background: '#161b27',
+          border: '0.5px solid rgba(255,255,255,0.06)',
+          borderRadius: '12px',
+          padding: '20px',
+        }}>
+          <h2 style={{ fontSize: '14px', fontWeight: '500', color: '#fff', marginBottom: '16px' }}>
+            Monthly spending
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 0', gap: '8px' }}>
+            <Wallet size={32} color="rgba(255,255,255,0.1)" />
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)' }}>Charts coming soon</p>
+          </div>
+        </div>
+
+      </div>
     </div>
   )
 }

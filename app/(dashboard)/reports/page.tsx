@@ -1,10 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  PieChart, Pie, Cell, ResponsiveContainer, Legend
-} from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts'
 import { TrendingUp, Wallet, FileText } from 'lucide-react'
 
 type ReportData = {
@@ -14,139 +11,135 @@ type ReportData = {
   topCategory: { name: string; icon: string | null; total: number } | null
 }
 
-const COLORS = ['#3B82F6', '#F59E0B', '#10B981', '#8B5CF6', '#F97316', '#06B6D4']
+const COLORS = ['#3b82f6', '#fbbf24', '#34d399', '#a78bfa', '#f87171', '#06b6d4']
 
 export default function ReportsPage() {
   const [data, setData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
-      try {
-        const res = await fetch('/api/reports')
-        const json = await res.json()
-        setData(json)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
+    fetch('/api/reports').then(r => r.json()).then(setData).finally(() => setLoading(false))
   }, [])
 
   const now = new Date()
-  const monthName = now.toLocaleString('default', { month: 'long' })
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
+      <div style={{
+        width: '24px', height: '24px',
+        border: '2px solid rgba(59,130,246,0.3)',
+        borderTop: '2px solid #3b82f6',
+        borderRadius: '50%',
+        animation: 'spin 0.7s linear infinite',
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  )
+
+  const summaryCards = [
+    { label: 'Total spent (6 months)', value: `₱${(data?.totalSpent ?? 0).toLocaleString()}`, icon: Wallet, color: '#60a5fa', bg: 'rgba(59,130,246,0.1)' },
+    { label: 'Top category', value: data?.topCategory ? `${data.topCategory.icon} ${data.topCategory.name}` : '—', icon: TrendingUp, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
+    { label: 'Avg per month', value: `₱${Math.round((data?.totalSpent ?? 0) / 6).toLocaleString()}`, icon: FileText, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+  ]
 
   return (
-    <div className="max-w-5xl mx-auto">
-
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reports</h1>
-        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-          {monthName} {now.getFullYear()} — your spending overview
+    <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '28px' }}>
+        <h1 style={{ fontSize: '22px', fontWeight: '500', color: '#fff' }}>Reports</h1>
+        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginTop: '4px' }}>
+          {now.toLocaleString('default', { month: 'long' })} {now.getFullYear()} — your spending overview
         </p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
-            <Wallet size={20} className="text-blue-600" />
+      {/* Summary cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+        {summaryCards.map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} style={{
+            background: '#161b27',
+            border: '0.5px solid rgba(255,255,255,0.06)',
+            borderRadius: '12px', padding: '16px',
+            display: 'flex', alignItems: 'center', gap: '14px',
+          }}>
+            <div style={{
+              width: '38px', height: '38px', borderRadius: '8px',
+              background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Icon size={18} color={color} />
+            </div>
+            <div>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginBottom: '3px' }}>{label}</p>
+              <p style={{ fontSize: '16px', fontWeight: '500', color: '#fff' }}>{value}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-gray-500">Total spent (6 months)</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">
-              ₱{data?.totalSpent.toLocaleString() ?? 0}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-yellow-50 dark:bg-yellow-950 flex items-center justify-center">
-            <TrendingUp size={20} className="text-yellow-600" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500">Top category</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">
-              {data?.topCategory ? `${data.topCategory.icon} ${data.topCategory.name}` : '—'}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-purple-50 dark:bg-purple-950 flex items-center justify-center">
-            <FileText size={20} className="text-purple-600" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500">Avg per month</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">
-              ₱{Math.round((data?.totalSpent ?? 0) / 6).toLocaleString()}
-            </p>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Bar Chart */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-5 mb-6">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-6">
+      <div style={{
+        background: '#161b27',
+        border: '0.5px solid rgba(255,255,255,0.06)',
+        borderRadius: '12px', padding: '20px', marginBottom: '16px',
+      }}>
+        <h2 style={{ fontSize: '14px', fontWeight: '500', color: '#fff', marginBottom: '20px' }}>
           Monthly spending (last 6 months)
         </h2>
-        <ResponsiveContainer width="100%" height={250}>
+        <ResponsiveContainer width="100%" height={220}>
           <BarChart data={data?.monthly ?? []} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `₱${v.toLocaleString()}`} />
-            <Tooltip formatter={(value) => [`₱${Number(value).toLocaleString()}`, 'Total']} />
-            <Bar dataKey="total" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.3)' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.3)' }} axisLine={false} tickLine={false} tickFormatter={v => `₱${v.toLocaleString()}`} />
+            <Tooltip
+              contentStyle={{ background: '#0a0c10', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '12px' }}
+              labelStyle={{ color: 'rgba(255,255,255,0.5)' }}
+              itemStyle={{ color: '#fff' }}
+              formatter={(value) => [`₱${Number(value).toLocaleString()}`, 'Total']}
+            />
+            <Bar dataKey="total" fill="#3b82f6" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
       {/* Pie Chart */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-5">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-6">
+      <div style={{
+        background: '#161b27',
+        border: '0.5px solid rgba(255,255,255,0.06)',
+        borderRadius: '12px', padding: '20px',
+      }}>
+        <h2 style={{ fontSize: '14px', fontWeight: '500', color: '#fff', marginBottom: '20px' }}>
           Spending by category
         </h2>
-        {data?.byCategory.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <FileText size={36} className="text-gray-300 mb-3" />
-            <p className="text-gray-400 text-sm">No data yet</p>
+        {(data?.byCategory.length ?? 0) === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px', gap: '8px' }}>
+            <FileText size={32} color="rgba(255,255,255,0.1)" />
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)' }}>No data yet</p>
           </div>
         ) : (
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={data?.byCategory ?? []}
-                  dataKey="total"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {data?.byCategory.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => [`₱${Number(value).toLocaleString()}`, 'Total']} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie
+                data={data?.byCategory ?? []}
+                dataKey="total"
+                nameKey="name"
+                cx="50%" cy="50%"
+                outerRadius={100}
+                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                labelLine={false}
+              >
+                {data?.byCategory.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{ background: '#0a0c10', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '12px' }}
+                itemStyle={{ color: '#fff' }}
+                formatter={(value) => [`₱${Number(value).toLocaleString()}`, 'Total']}
+              />
+              <Legend wrapperStyle={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }} />
+            </PieChart>
+          </ResponsiveContainer>
         )}
       </div>
-
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 }

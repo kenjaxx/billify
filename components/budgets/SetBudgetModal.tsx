@@ -5,25 +5,26 @@ import { X } from 'lucide-react'
 
 type Category = { id: string; name: string; icon: string | null }
 
-export default function SetBudgetModal({
-  isOpen,
-  onClose,
-  onSuccess,
-}: {
-  isOpen: boolean
-  onClose: () => void
-  onSuccess: () => void
+const inputStyle = {
+  width: '100%',
+  background: '#0a0c10',
+  border: '0.5px solid rgba(255,255,255,0.08)',
+  borderRadius: '8px',
+  padding: '10px 14px',
+  fontSize: '13px',
+  color: '#fff',
+  outline: 'none',
+}
+
+export default function SetBudgetModal({ isOpen, onClose, onSuccess }: {
+  isOpen: boolean; onClose: () => void; onSuccess: () => void
 }) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ categoryId: '', amount: '' })
 
   useEffect(() => {
-    if (isOpen) {
-      fetch('/api/categories')
-        .then(r => r.json())
-        .then(setCategories)
-    }
+    if (isOpen) fetch('/api/categories').then(r => r.json()).then(setCategories)
   }, [isOpen])
 
   const handleSubmit = async () => {
@@ -32,10 +33,7 @@ export default function SetBudgetModal({
     await fetch('/api/budgets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        categoryId: form.categoryId,
-        amount: parseFloat(form.amount),
-      }),
+      body: JSON.stringify({ categoryId: form.categoryId, amount: parseFloat(form.amount) }),
     })
     setLoading(false)
     setForm({ categoryId: '', amount: '' })
@@ -45,61 +43,52 @@ export default function SetBudgetModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md p-6">
-
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Set Budget</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={20} />
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.6)', padding: '24px',
+    }}>
+      <div style={{
+        background: '#161b27',
+        border: '0.5px solid rgba(255,255,255,0.08)',
+        borderRadius: '16px', padding: '28px',
+        width: '100%', maxWidth: '400px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: '500', color: '#fff' }}>Set Budget</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}>
+            <X size={18} />
           </button>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label className="text-xs font-medium text-gray-500 mb-1 block">Category</label>
-            <select
-              value={form.categoryId}
-              onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))}
-              className="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
+            <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>Category</label>
+            <select value={form.categoryId} onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))} style={inputStyle}>
               <option value="">Select category</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.icon} {cat.name}
-                </option>
-              ))}
+              {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>)}
             </select>
           </div>
-
           <div>
-            <label className="text-xs font-medium text-gray-500 mb-1 block">Monthly limit (₱)</label>
-            <input
-              type="number"
-              placeholder="0.00"
-              value={form.amount}
-              onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
-              className="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>Monthly limit (₱)</label>
+            <input type="number" placeholder="0.00" value={form.amount}
+              onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} style={inputStyle} />
           </div>
         </div>
 
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-sm font-medium py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {loading ? 'Saving...' : 'Save Budget'}
-          </button>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
+          <button onClick={onClose} style={{
+            flex: 1, background: 'transparent',
+            border: '0.5px solid rgba(255,255,255,0.1)',
+            color: 'rgba(255,255,255,0.5)', borderRadius: '8px',
+            padding: '10px', fontSize: '13px', cursor: 'pointer',
+          }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={loading} style={{
+            flex: 1, background: loading ? 'rgba(59,130,246,0.5)' : '#3b82f6',
+            border: 'none', color: '#fff', borderRadius: '8px',
+            padding: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+          }}>{loading ? 'Saving...' : 'Save Budget'}</button>
         </div>
-
       </div>
     </div>
   )

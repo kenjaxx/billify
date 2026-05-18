@@ -3,13 +3,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard,
-  FileText,
-  Wallet,
-  BarChart2,
-  Settings,
+  LayoutDashboard, FileText, Wallet, BarChart2, Settings,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -22,30 +17,86 @@ export default function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="hidden md:flex flex-col w-56 min-h-screen border-r bg-white dark:bg-gray-950 px-3 py-4">
-      <div className="text-xl font-bold px-3 mb-8 text-blue-600">Billify</div>
-      <nav className="flex flex-col gap-1 flex-1">
-        {navItems.map(({ label, href, icon: Icon }) => (
+    <aside style={{
+      width: '220px',
+      minHeight: '100vh',
+      background: 'var(--bg-tertiary)',
+      borderRight: '0.5px solid var(--border)',
+      padding: '20px 12px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '2px',
+      flexShrink: 0,
+    }} className="hidden md:flex">
+
+      {/* Logo */}
+      <div style={{
+        fontSize: '20px',
+        fontWeight: '500',
+        color: '#fff',
+        padding: '8px 12px',
+        marginBottom: '20px',
+        letterSpacing: '-0.5px',
+      }}>
+        Bill<span style={{ color: 'var(--accent)' }}>ify</span>
+      </div>
+
+      {/* Nav label */}
+      <div style={{
+        fontSize: '10px',
+        color: 'var(--text-muted)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.8px',
+        padding: '4px 12px',
+        marginBottom: '4px',
+      }}>
+        Menu
+      </div>
+
+      {/* Nav items */}
+      {navItems.map(({ label, href, icon: Icon }) => {
+        const active = pathname === href
+        return (
           <Link
             key={href}
             href={href}
-            className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
-              pathname === href
-                ? 'bg-blue-50 text-blue-600 font-medium dark:bg-blue-950 dark:text-blue-400'
-                : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-900'
-            )}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '9px 12px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: active ? '500' : '400',
+              color: active ? '#60a5fa' : 'rgba(255,255,255,0.4)',
+              background: active ? 'rgba(59,130,246,0.1)' : 'transparent',
+              textDecoration: 'none',
+              transition: 'all 0.15s',
+            }}
           >
-            <Icon size={18} />
+            <Icon size={16} />
             {label}
           </Link>
-        ))}
-      </nav>
+        )
+      })}
+
+      {/* Settings at bottom */}
       <Link
         href="/settings"
-        className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '9px 12px',
+          borderRadius: '8px',
+          fontSize: '13px',
+          color: 'rgba(255,255,255,0.4)',
+          marginTop: 'auto',
+          textDecoration: 'none',
+          transition: 'all 0.15s',
+        }}
       >
-        <Settings size={18} />
+        <Settings size={16} />
         Settings
       </Link>
     </aside>
