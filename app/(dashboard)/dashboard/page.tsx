@@ -4,20 +4,19 @@ import { createSupabaseServer } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 
 export default async function DashboardPage() {
+  const supabase = await createSupabaseServer()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
   const now = new Date()
   const monthName = now.toLocaleString('default', { month: 'long' })
   const year = now.getFullYear()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-  const supabase = await createSupabaseServer()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  
 
   const bills = await prisma.bill.findMany({
     where: {
-      userId: 'temp-user-id',
+      userId: user.id,
       dueDate: { gte: startOfMonth, lte: endOfMonth },
     },
   })
@@ -29,7 +28,7 @@ export default async function DashboardPage() {
 
   const upcomingBills = await prisma.bill.findMany({
     where: {
-      userId: 'temp-user-id',
+      userId: user.id,
       status: { not: 'PAID' },
       dueDate: { gte: now },
     },
