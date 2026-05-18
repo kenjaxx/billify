@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { FileText, CheckCircle, AlertCircle, Clock } from 'lucide-react'
+import { FileText, CheckCircle, AlertCircle, Clock, Trash2, CheckCheck } from 'lucide-react'
 import { format } from 'date-fns'
 
 type Bill = {
@@ -35,24 +35,51 @@ export default function BillList({ refresh }: { refresh: number }) {
   const [bills, setBills] = useState<Bill[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'ALL' | 'PAID' | 'UNPAID' | 'OVERDUE'>('ALL')
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchBills = async () => {
-      setLoading(true)
-      try {
-        const res = await fetch('/api/bills')
-        if (!res.ok) throw new Error('Failed to fetch')
-        const data = await res.json()
-        setBills(data)
-      } catch (err) {
-        console.error('Error fetching bills:', err)
-        setBills([])
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchBills()
   }, [refresh])
+
+  const fetchBills = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/bills')
+      if (!res.ok) throw new Error('Failed to fetch')
+      const data = await res.json()
+      setBills(data)
+    } catch (err) {
+      console.error('Error fetching bills:', err)
+      setBills([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMarkPaid = async (id: string) => {
+    setActionLoading(id)
+    try {
+      await fetch(`/api/bills/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'PAID' }),
+      })
+      await fetchBills()
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this bill?')) return
+    setActionLoading(id)
+    try {
+      await fetch(`/api/bills/${id}`, { method: 'DELETE' })
+      await fetchBills()
+    } finally {
+      setActionLoading(null)
+    }
+  }
 
   const filtered = filter === 'ALL' ? bills : bills.filter(b => b.status === filter)
 
@@ -92,8 +119,12 @@ export default function BillList({ refresh }: { refresh: number }) {
             {filtered.map(bill => {
               const status = statusConfig[bill.status]
               const StatusIcon = status.icon
+              const isLoading = actionLoading === bill.id
               return (
-                <div key={bill.id} className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <div
+                  key={bill.id}
+                  className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-base">
                       {bill.category.icon ?? '📄'}
@@ -105,14 +136,37 @@ export default function BillList({ refresh }: { refresh: number }) {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+
+                  <div className="flex items-center gap-2">
                     <span className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${status.class}`}>
                       <StatusIcon size={11} />
                       {status.label}
                     </span>
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white min-w-[70px] text-right">
                       ₱{bill.amount.toLocaleString()}
                     </span>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 ml-2">
+                      {bill.status !== 'PAID' && (
+                        <button
+                          onClick={() => handleMarkPaid(bill.id)}
+                          disabled={isLoading}
+                          title="Mark as paid"
+                          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-950 transition-colors disabled:opacity-50"
+                        >
+                          <CheckCheck size={15} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(bill.id)}
+                        disabled={isLoading}
+                        title="Delete bill"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )
