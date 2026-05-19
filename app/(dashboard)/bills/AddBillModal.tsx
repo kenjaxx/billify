@@ -93,7 +93,8 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
           <div>
             <label style={labelStyle}>Due date</label>
             <input type="date" value={form.dueDate}
-              onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))} style={inputStyle} />
+              onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}  style={{ ...inputStyle, colorScheme: 'dark' }} />
+              
           </div>
           <div>
             <label style={labelStyle}>Notes (optional)</label>

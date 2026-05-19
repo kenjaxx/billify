@@ -10,6 +10,10 @@ const adapter = new PrismaPg({
 
 const prisma = new PrismaClient({ adapter })
 
+
+const YOUR_USER_ID = 'db999c11-dbd9-4e8c-ab36-7732428c6432'
+
+
 async function main() {
   // Create temp user first
   await prisma.user.upsert({
