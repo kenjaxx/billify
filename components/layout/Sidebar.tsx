@@ -1,13 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   FileText,
   Wallet,
   BarChart2,
-  Settings,
   LogOut
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -21,11 +20,10 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/login')
+    window.location.href = '/login'
   }
 
   return (
@@ -71,7 +69,6 @@ export default function Sidebar() {
 
       {navItems.map(({ label, href, icon: Icon }) => {
         const active = pathname === href
-
         return (
           <Link
             key={href}
@@ -85,9 +82,7 @@ export default function Sidebar() {
               fontSize: '13px',
               fontWeight: active ? '500' : '400',
               color: active ? '#60a5fa' : 'rgba(255,255,255,0.4)',
-              background: active
-                ? 'rgba(59,130,246,0.1)'
-                : 'transparent',
+              background: active ? 'rgba(59,130,246,0.1)' : 'transparent',
               textDecoration: 'none',
               transition: 'all 0.15s',
             }}
@@ -97,25 +92,6 @@ export default function Sidebar() {
           </Link>
         )
       })}
-
-      <Link
-        href="/settings"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          padding: '9px 12px',
-          borderRadius: '8px',
-          fontSize: '13px',
-          color: 'rgba(255,255,255,0.4)',
-          marginTop: 'auto',
-          textDecoration: 'none',
-          transition: 'all 0.15s',
-        }}
-      >
-        <Settings size={16} />
-        Settings
-      </Link>
 
       <button
         onClick={handleLogout}
@@ -131,6 +107,8 @@ export default function Sidebar() {
           border: 'none',
           cursor: 'pointer',
           transition: 'all 0.15s',
+          marginTop: '8px',
+          width: '100%',
         }}
       >
         <LogOut size={16} />

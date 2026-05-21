@@ -27,16 +27,21 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // If not logged in and trying to access dashboard, redirect to login
-  if (!user && request.nextUrl.pathname.startsWith('/dashboard') ||
-      !user && request.nextUrl.pathname.startsWith('/bills') ||
-      !user && request.nextUrl.pathname.startsWith('/budgets') ||
-      !user && request.nextUrl.pathname.startsWith('/reports')) {
+  const protectedRoutes = ['/dashboard', '/bills', '/budgets', '/reports', '/settings']
+  const authRoutes = ['/login', '/register']
+
+  const isProtected = protectedRoutes.some(route => 
+    request.nextUrl.pathname.startsWith(route)
+  )
+  const isAuthRoute = authRoutes.some(route => 
+    request.nextUrl.pathname === route
+  )
+
+  if (!user && isProtected) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // If logged in and trying to access login/register, redirect to dashboard
-  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
+  if (user && isAuthRoute) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
@@ -44,5 +49,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api).*)'],
 }

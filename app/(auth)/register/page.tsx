@@ -12,26 +12,54 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleRegister = async () => {
-    setLoading(true)
-    setError('')
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { name } }
-    })
-    if (error) {
-      setError(error.message)
-    } else if (data.user) {
+ const handleRegister = async () => {
+  setLoading(true)
+  setError('')
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { name } }
+  })
+
+  if (error) {
+    setError(error.message)
+    setLoading(false)
+    return
+  }
+
+  // Email already exists in Supabase Auth but not confirmed/synced
+  if (data.user && data.session === null) {
+    // Try to sign them in instead
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      setError('An account with this email already exists. Please sign in instead.')
+      setLoading(false)
+      return
+    }
+    if (signInData.user) {
       await fetch('/api/auth/sync-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: data.user.id, email, name }),
+        body: JSON.stringify({ id: signInData.user.id, email, name }),
       })
       router.push('/dashboard')
     }
     setLoading(false)
+    return
   }
+
+  if (data.user) {
+    await fetch('/api/auth/sync-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: data.user.id, email, name }),
+    })
+    router.push('/dashboard')
+  }
+
+  setLoading(false)
+}
 
   return (
     <div style={{

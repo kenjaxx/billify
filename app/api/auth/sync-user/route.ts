@@ -1,3 +1,6 @@
+// Save this as: app/api/auth/sync-user/route.ts
+// (move from app/(auth)/sync-user/route.ts)
+
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -9,7 +12,7 @@ export async function POST(req: Request) {
       update: { name },
       create: { id, email, name },
     })
-    
+
     // Seed default categories for new user
     await prisma.category.createMany({
       data: [
