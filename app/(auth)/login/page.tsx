@@ -12,14 +12,40 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      setError('Please enter your email and password.')
+      return
+    }
     setLoading(true)
     setError('')
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+
     if (error) {
-      setError(error.message)
-    } else if (data.user) {
+      // Give a friendlier message for the common "email not confirmed" case
+      if (error.message.toLowerCase().includes('email not confirmed')) {
+        setError('Your email address has not been confirmed yet. Please check your inbox and click the confirmation link.')
+      } else {
+        setError(error.message)
+      }
+      setLoading(false)
+      return
+    }
+
+    if (data.user) {
+      // Sync user to our DB and seed categories if they don't exist yet
+      await fetch('/api/auth/sync-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.user_metadata?.name ?? null,
+        }),
+      })
       router.push('/dashboard')
     }
+
     setLoading(false)
   }
 
@@ -59,6 +85,7 @@ export default function LoginPage() {
             fontSize: '13px',
             color: '#f87171',
             marginBottom: '16px',
+            lineHeight: '1.5',
           }}>
             {error}
           </div>

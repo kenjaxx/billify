@@ -2,65 +2,111 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 
 export default function RegisterPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
 
- const handleRegister = async () => {
-  setLoading(true)
-  setError('')
+  const handleRegister = async () => {
+    if (!email || !password || !name) {
+      setError('Please fill in all fields.')
+      return
+    }
+    setLoading(true)
+    setError('')
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { name } }
-  })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name },
+        // After clicking the confirmation link, redirect to /dashboard
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+      },
+    })
 
-  if (error) {
-    setError(error.message)
-    setLoading(false)
-    return
-  }
-
-  // Email already exists in Supabase Auth but not confirmed/synced
-  if (data.user && data.session === null) {
-    // Try to sign them in instead
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-    if (signInError) {
-      setError('An account with this email already exists. Please sign in instead.')
+    if (error) {
+      setError(error.message)
       setLoading(false)
       return
     }
-    if (signInData.user) {
-      await fetch('/api/auth/sync-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: signInData.user.id, email, name }),
-      })
-      router.push('/dashboard')
+
+    // User created but email not yet confirmed
+    if (data.user) {
+      setEmailSent(true)
     }
+
     setLoading(false)
-    return
   }
 
-  if (data.user) {
-    await fetch('/api/auth/sync-user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: data.user.id, email, name }),
-    })
-    router.push('/dashboard')
+  // ── Email sent screen ────────────────────────────────────────────────────────
+  if (emailSent) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: '#0f1117',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px',
+      }}>
+        <div style={{
+          background: '#161b27',
+          border: '0.5px solid rgba(255,255,255,0.08)',
+          borderRadius: '16px',
+          padding: '40px 36px',
+          width: '100%',
+          maxWidth: '400px',
+          textAlign: 'center',
+        }}>
+          <div style={{
+            width: '56px', height: '56px',
+            background: 'rgba(59,130,246,0.15)',
+            borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 20px',
+            fontSize: '24px',
+          }}>
+            ✉️
+          </div>
+          <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', marginBottom: '10px' }}>
+            Check your email
+          </h2>
+          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', lineHeight: '1.6', marginBottom: '8px' }}>
+            We sent a confirmation link to
+          </p>
+          <p style={{ fontSize: '14px', fontWeight: '500', color: '#60a5fa', marginBottom: '20px' }}>
+            {email}
+          </p>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', lineHeight: '1.6', marginBottom: '28px' }}>
+            Click the link in the email to confirm your account, then sign in. Check your spam folder if you don't see it.
+          </p>
+          <a
+            href="/login"
+            style={{
+              display: 'inline-block',
+              background: '#3b82f6',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '10px 28px',
+              fontSize: '13px',
+              fontWeight: '500',
+              textDecoration: 'none',
+            }}
+          >
+            Back to Sign In
+          </a>
+        </div>
+      </div>
+    )
   }
 
-  setLoading(false)
-}
-
+  // ── Register form ────────────────────────────────────────────────────────────
   return (
     <div style={{
       minHeight: '100vh',
@@ -140,6 +186,7 @@ export default function RegisterPage() {
             placeholder="••••••••"
             value={password}
             onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleRegister()}
             style={{
               width: '100%', background: '#0a0c10',
               border: '0.5px solid rgba(255,255,255,0.08)',
