@@ -12,17 +12,21 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      setError('Please enter your email and password.')
-      return
-    }
-    setLoading(true)
-    setError('')
+  if (!email || !password) {
+    setError('Please enter your email and password.')
+    return
+  }
+  setLoading(true)
+  setError('')
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+ 
+  await supabase.auth.signOut()
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+ 
 
     if (error) {
-      // Give a friendlier message for the common "email not confirmed" case
+      
       if (error.message.toLowerCase().includes('email not confirmed')) {
         setError('Your email address has not been confirmed yet. Please check your inbox and click the confirmation link.')
       } else {

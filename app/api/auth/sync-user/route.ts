@@ -5,17 +5,16 @@ export async function POST(req: Request) {
   try {
     const { id, email, name } = await req.json()
 
-    // Check if user already exists in our DB
     const existingUser = await prisma.user.findUnique({ where: { email } })
 
-    // Upsert the user record
+ 
+    
     await prisma.user.upsert({
       where: { email },
       update: { name },
       create: { id, email, name },
     })
 
-    // Only seed default categories if this is a brand-new user
     if (!existingUser) {
       await prisma.category.createMany({
         data: [

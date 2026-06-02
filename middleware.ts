@@ -25,20 +25,32 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // getUser() hits Supabase Auth server — not just the local JWT
+  const { data: { user }, error } = await supabase.auth.getUser()
 
   const protectedRoutes = ['/dashboard', '/bills', '/budgets', '/reports', '/settings']
   const authRoutes = ['/login', '/register']
 
-  const isProtected = protectedRoutes.some(route => 
+  const isProtected = protectedRoutes.some(route =>
     request.nextUrl.pathname.startsWith(route)
   )
-  const isAuthRoute = authRoutes.some(route => 
+  const isAuthRoute = authRoutes.some(route =>
     request.nextUrl.pathname === route
   )
 
-  if (!user && isProtected) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // No valid user (deleted, expired, or never logged in)
+  if (!user || error) {
+    if (isProtected) {
+      // Clear the stale session cookies before redirecting
+      const redirectResponse = NextResponse.redirect(new URL('/login', request.url))
+      request.cookies.getAll().forEach(({ name }) => {
+        if (name.includes('sb-') || name.includes('supabase')) {
+          redirectResponse.cookies.delete(name)
+        }
+      })
+      return redirectResponse
+    }
+    return supabaseResponse
   }
 
   if (user && isAuthRoute) {
