@@ -15,18 +15,7 @@ export default function DashboardLayout({
     }}>
       <Sidebar />
       <TopBar />
-      {/* Offset by sidebar width on md+, and by topbar height */}
-      <main
-        style={{
-          flex: 1,
-          padding: '32px',
-          paddingTop: '88px', /* 56px topbar + 32px spacing */
-          paddingBottom: '80px',
-          overflowX: 'hidden',
-          background: 'var(--bg-primary)',
-        }}
-        className="md:ml-[220px] ml-0"
-      >
+      <main className="dashboard-main">
         {children}
       </main>
       <BottomNav />

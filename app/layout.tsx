@@ -1,20 +1,24 @@
-import Sidebar from '@/components/layout/Sidebar'
-import BottomNav from '@/components/layout/BottomNav'
-import TopBar from '@/components/layout/TopBar'
+import type { Metadata } from 'next'
+import { ThemeProvider } from '@/lib/theme-context'
+import './globals.css'
 
-export default function DashboardLayout({
+export const metadata: Metadata = {
+  title: 'Billify',
+  description: 'Track and manage your bills',
+}
+
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
-      <Sidebar />
-      <TopBar />
-      <main className="dashboard-main">
-        {children}
-      </main>
-      <BottomNav />
-    </div>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
   )
 }
