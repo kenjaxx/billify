@@ -29,22 +29,15 @@ function LogoutConfirmModal({
 }) {
   return (
     <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 200,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'rgba(0,0,0,0.6)',
-      padding: '24px',
+      position: 'fixed', inset: 0, zIndex: 200,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.6)', padding: '24px',
     }}>
       <div style={{
-        background: '#161b27',
-        border: '0.5px solid rgba(255,255,255,0.08)',
-        borderRadius: '16px',
-        padding: '28px',
-        width: '100%',
-        maxWidth: '360px',
+        background: 'var(--bg-secondary)',
+        border: '0.5px solid var(--border)',
+        borderRadius: '16px', padding: '28px',
+        width: '100%', maxWidth: '360px',
         boxShadow: '0 24px 48px rgba(0,0,0,0.4)',
       }}>
         <div style={{
@@ -55,29 +48,25 @@ function LogoutConfirmModal({
         }}>
           <AlertTriangle size={20} color="#f87171" />
         </div>
-        <h2 style={{ fontSize: '15px', fontWeight: '500', color: '#fff', marginBottom: '8px' }}>
+        <h2 style={{ fontSize: '15px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '8px' }}>
           Sign out?
         </h2>
-        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', lineHeight: '1.6', marginBottom: '24px' }}>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '24px' }}>
           You'll be returned to the login screen. Any unsaved changes will be lost.
         </p>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={onCancel} style={{
             flex: 1, background: 'transparent',
-            border: '0.5px solid rgba(255,255,255,0.1)',
-            color: 'rgba(255,255,255,0.5)', borderRadius: '8px',
+            border: '0.5px solid var(--border-strong)',
+            color: 'var(--text-secondary)', borderRadius: '8px',
             padding: '10px', fontSize: '13px', cursor: 'pointer',
-          }}>
-            Cancel
-          </button>
+          }}>Cancel</button>
           <button onClick={onConfirm} style={{
             flex: 1, background: 'rgba(248,113,113,0.15)',
             border: '0.5px solid rgba(248,113,113,0.25)',
             color: '#f87171', borderRadius: '8px',
             padding: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
-          }}>
-            Sign out
-          </button>
+          }}>Sign out</button>
         </div>
       </div>
     </div>
@@ -95,30 +84,27 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Sidebar — desktop only, inline style handles display so Tailwind doesn't interfere */}
-      <aside style={{
-        width: '220px',
-        height: '100vh',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        background: 'var(--bg-tertiary)',
-        borderRight: '0.5px solid var(--border)',
-        padding: '20px 12px',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        flexShrink: 0,
-        zIndex: 40,
-        // Hide on mobile, show on md+ — done inline to avoid Tailwind override
-        display: 'none',
-      }}
-        // Use a data attribute trick: override display via a style tag below
+      <aside
         id="app-sidebar"
+        style={{
+          width: '220px',
+          height: '100vh',
+          position: 'fixed',
+          top: 0, left: 0,
+          background: 'var(--bg-tertiary)',
+          borderRight: '0.5px solid var(--border)',
+          padding: '20px 12px',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+          zIndex: 40,
+          display: 'none',
+        }}
       >
         {/* TOP: logo + nav */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
           <div style={{
-            fontSize: '20px', fontWeight: '500', color: '#fff',
+            fontSize: '20px', fontWeight: '500', color: 'var(--text-primary)',
             padding: '8px 12px', marginBottom: '20px', letterSpacing: '-0.5px',
           }}>
             Bill<span style={{ color: 'var(--accent)' }}>ify</span>
@@ -140,7 +126,7 @@ export default function Sidebar() {
                   display: 'flex', alignItems: 'center', gap: '10px',
                   padding: '9px 12px', borderRadius: '8px',
                   fontSize: '13px', fontWeight: active ? '500' : '400',
-                  color: active ? '#60a5fa' : 'rgba(255,255,255,0.4)',
+                  color: active ? '#60a5fa' : 'var(--text-secondary)',
                   background: active ? 'rgba(59,130,246,0.1)' : 'transparent',
                   textDecoration: 'none', transition: 'all 0.15s',
                 }}>
@@ -152,10 +138,10 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* BOTTOM: divider + logout */}
+        {/* BOTTOM: logout (mobile only — desktop uses TopBar) */}
         <div>
           <div style={{
-            height: '0.5px', background: 'rgba(255,255,255,0.06)',
+            height: '0.5px', background: 'var(--border)',
             margin: '0 4px 10px',
           }} />
           <button
@@ -163,7 +149,7 @@ export default function Sidebar() {
             style={{
               display: 'flex', alignItems: 'center', gap: '10px',
               padding: '9px 12px', borderRadius: '8px',
-              fontSize: '13px', color: 'rgba(255,255,255,0.35)',
+              fontSize: '13px', color: 'var(--text-muted)',
               background: 'transparent', border: 'none',
               cursor: 'pointer', width: '100%', transition: 'all 0.15s',
             }}
@@ -172,7 +158,7 @@ export default function Sidebar() {
               e.currentTarget.style.background = 'rgba(248,113,113,0.08)'
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.color = 'rgba(255,255,255,0.35)'
+              e.currentTarget.style.color = 'var(--text-muted)'
               e.currentTarget.style.background = 'transparent'
             }}
           >
@@ -182,7 +168,6 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* Show sidebar on md+ screens */}
       <style>{`
         @media (min-width: 768px) {
           #app-sidebar { display: flex !important; }

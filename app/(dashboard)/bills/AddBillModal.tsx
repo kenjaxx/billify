@@ -5,20 +5,20 @@ import { X } from 'lucide-react'
 
 type Category = { id: string; name: string; icon: string | null }
 
-const inputStyle = {
+const inputStyle: React.CSSProperties = {
   width: '100%',
-  background: '#0a0c10',
-  border: '0.5px solid rgba(255,255,255,0.08)',
+  background: 'var(--bg-input)',
+  border: '0.5px solid var(--border-input)',
   borderRadius: '8px',
   padding: '10px 14px',
   fontSize: '13px',
-  color: '#fff',
+  color: 'var(--text-primary)',
   outline: 'none',
 }
 
-const labelStyle = {
+const labelStyle: React.CSSProperties = {
   fontSize: '11px',
-  color: 'rgba(255,255,255,0.4)',
+  color: 'var(--text-secondary)',
   display: 'block',
   marginBottom: '6px',
 }
@@ -37,10 +37,7 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
     setCatLoading(true)
     setCatError('')
     fetch('/api/categories')
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then(data => {
         if (!Array.isArray(data) || data.length === 0) {
           setCatError('No categories found. Please add a category first.')
@@ -50,7 +47,7 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
         }
       })
       .catch(err => {
-        console.error('Failed to load categories:', err)
+        console.error(err)
         setCatError('Failed to load categories. Please try again.')
         setCategories([])
       })
@@ -69,7 +66,7 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
       setForm({ title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: '' })
       onSuccess()
     } catch (err) {
-      console.error('Failed to add bill:', err)
+      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -84,16 +81,14 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
       background: 'rgba(0,0,0,0.6)', padding: '24px',
     }}>
       <div style={{
-        background: '#161b27',
-        border: '0.5px solid rgba(255,255,255,0.08)',
-        borderRadius: '16px',
-        padding: '28px',
-        width: '100%',
-        maxWidth: '440px',
+        background: 'var(--bg-card)',
+        border: '0.5px solid var(--border-input)',
+        borderRadius: '16px', padding: '28px',
+        width: '100%', maxWidth: '440px',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '500', color: '#fff' }}>Add new bill</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>Add new bill</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={18} />
           </button>
         </div>
@@ -112,14 +107,12 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
           <div>
             <label style={labelStyle}>Category</label>
             {catLoading ? (
-              <div style={{ ...inputStyle, color: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ ...inputStyle, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{
                   width: '12px', height: '12px',
                   border: '2px solid rgba(59,130,246,0.3)',
                   borderTop: '2px solid #3b82f6',
-                  borderRadius: '50%',
-                  animation: 'spin 0.7s linear infinite',
-                  flexShrink: 0,
+                  borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0,
                 }} />
                 Loading categories...
               </div>
@@ -139,7 +132,8 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
           <div>
             <label style={labelStyle}>Due date</label>
             <input type="date" value={form.dueDate}
-              onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))} style={{ ...inputStyle, colorScheme: 'dark' }} />
+              onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
+              style={{ ...inputStyle, colorScheme: 'inherit' }} />
           </div>
           <div>
             <label style={labelStyle}>Notes (optional)</label>
@@ -151,7 +145,7 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
             <input type="checkbox" id="recurring" checked={form.isRecurring}
               onChange={e => setForm(p => ({ ...p, isRecurring: e.target.checked }))}
               style={{ accentColor: '#3b82f6' }} />
-            <label htmlFor="recurring" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)' }}>
+            <label htmlFor="recurring" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
               Recurring monthly bill
             </label>
           </div>
@@ -160,8 +154,8 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
         <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
           <button onClick={onClose} style={{
             flex: 1, background: 'transparent',
-            border: '0.5px solid rgba(255,255,255,0.1)',
-            color: 'rgba(255,255,255,0.5)', borderRadius: '8px',
+            border: '0.5px solid var(--border-strong)',
+            color: 'var(--text-secondary)', borderRadius: '8px',
             padding: '10px', fontSize: '13px', cursor: 'pointer',
           }}>Cancel</button>
           <button
@@ -177,7 +171,6 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
           >{loading ? 'Saving...' : 'Add Bill'}</button>
         </div>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 }

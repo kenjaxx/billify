@@ -1,24 +1,20 @@
-import type { Metadata } from 'next'
-import { Geist } from 'next/font/google'
-import './globals.css'
+import Sidebar from '@/components/layout/Sidebar'
+import BottomNav from '@/components/layout/BottomNav'
+import TopBar from '@/components/layout/TopBar'
 
-const geist = Geist({ subsets: ['latin'] })
-
-export const metadata: Metadata = {
-  title: 'Billify',
-  description: 'Track your home expenses and utilities',
-}
-
-export default function RootLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={geist.className} style={{ background: '#0f1117', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+      <Sidebar />
+      <TopBar />
+      <main className="dashboard-main">
         {children}
-      </body>
-    </html>
+      </main>
+      <BottomNav />
+    </div>
   )
 }

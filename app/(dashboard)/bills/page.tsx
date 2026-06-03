@@ -16,12 +16,10 @@ export default function BillsPage() {
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: '500', color: '#fff' }}>Bills</h1>
-          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginTop: '4px' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: '500', color: 'var(--text-primary)' }}>Bills</h1>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
             Manage and track all your bills
           </p>
         </div>

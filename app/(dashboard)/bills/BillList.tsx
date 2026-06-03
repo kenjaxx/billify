@@ -14,8 +14,8 @@ type Bill = {
 }
 
 const statusConfig = {
-  PAID: { label: 'Paid', icon: CheckCircle, color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
-  UNPAID: { label: 'Unpaid', icon: Clock, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
+  PAID:    { label: 'Paid',    icon: CheckCircle, color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+  UNPAID:  { label: 'Unpaid',  icon: Clock,       color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
   OVERDUE: { label: 'Overdue', icon: AlertCircle, color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
 }
 
@@ -73,14 +73,11 @@ export default function BillList({ refresh }: { refresh: number }) {
             key={f}
             onClick={() => setFilter(f)}
             style={{
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '12px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              border: filter === f ? 'none' : '0.5px solid rgba(255,255,255,0.1)',
+              padding: '6px 14px', borderRadius: '8px',
+              fontSize: '12px', fontWeight: '500', cursor: 'pointer',
+              border: filter === f ? 'none' : '0.5px solid var(--border-strong)',
               background: filter === f ? '#3b82f6' : 'transparent',
-              color: filter === f ? '#fff' : 'rgba(255,255,255,0.4)',
+              color: filter === f ? '#fff' : 'var(--text-muted)',
               transition: 'all 0.15s',
             }}
           >
@@ -89,12 +86,10 @@ export default function BillList({ refresh }: { refresh: number }) {
         ))}
       </div>
 
-      {/* List */}
       <div style={{
-        background: '#161b27',
-        border: '0.5px solid rgba(255,255,255,0.06)',
-        borderRadius: '12px',
-        overflow: 'hidden',
+        background: 'var(--bg-card)',
+        border: '0.5px solid var(--border)',
+        borderRadius: '12px', overflow: 'hidden',
       }}>
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '64px' }}>
@@ -102,15 +97,14 @@ export default function BillList({ refresh }: { refresh: number }) {
               width: '24px', height: '24px',
               border: '2px solid rgba(59,130,246,0.3)',
               borderTop: '2px solid #3b82f6',
-              borderRadius: '50%',
-              animation: 'spin 0.7s linear infinite',
+              borderRadius: '50%', animation: 'spin 0.7s linear infinite',
             }} />
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px', gap: '8px' }}>
-            <FileText size={36} color="rgba(255,255,255,0.1)" />
-            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)' }}>No bills found</p>
-            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.15)' }}>Add a bill using the button above</p>
+            <FileText size={36} color="var(--text-faint)" />
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No bills found</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Add a bill using the button above</p>
           </div>
         ) : (
           filtered.map((bill, i) => {
@@ -123,20 +117,20 @@ export default function BillList({ refresh }: { refresh: number }) {
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '14px 20px',
-                  borderBottom: i < filtered.length - 1 ? '0.5px solid rgba(255,255,255,0.04)' : 'none',
+                  borderBottom: i < filtered.length - 1 ? '0.5px solid var(--border)' : 'none',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{
                     width: '36px', height: '36px', borderRadius: '8px',
-                    background: 'rgba(255,255,255,0.05)',
+                    background: 'var(--icon-bg)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px',
                   }}>
                     {bill.category.icon ?? '📄'}
                   </div>
                   <div>
-                    <p style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.9)' }}>{bill.title}</p>
-                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
+                    <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>{bill.title}</p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                       Due {format(new Date(bill.dueDate), 'MMM d, yyyy')} · {bill.category.name}
                     </p>
                   </div>
@@ -152,7 +146,7 @@ export default function BillList({ refresh }: { refresh: number }) {
                     <StatusIcon size={11} />
                     {status.label}
                   </span>
-                  <span style={{ fontSize: '13px', fontWeight: '500', color: '#fff', minWidth: '80px', textAlign: 'right' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', minWidth: '80px', textAlign: 'right' }}>
                     ₱{bill.amount.toLocaleString()}
                   </span>
                   <div style={{ display: 'flex', gap: '4px' }}>
@@ -164,7 +158,7 @@ export default function BillList({ refresh }: { refresh: number }) {
                         style={{
                           width: '30px', height: '30px', borderRadius: '6px', border: 'none',
                           background: 'transparent', cursor: 'pointer', display: 'flex',
-                          alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)',
+                          alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
                         }}
                       >
                         <CheckCheck size={14} />
@@ -177,7 +171,7 @@ export default function BillList({ refresh }: { refresh: number }) {
                       style={{
                         width: '30px', height: '30px', borderRadius: '6px', border: 'none',
                         background: 'transparent', cursor: 'pointer', display: 'flex',
-                        alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)',
+                        alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
                       }}
                     >
                       <Trash2 size={14} />
@@ -189,7 +183,6 @@ export default function BillList({ refresh }: { refresh: number }) {
           })
         )}
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 }

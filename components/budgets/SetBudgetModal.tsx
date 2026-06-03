@@ -5,14 +5,14 @@ import { X } from 'lucide-react'
 
 type Category = { id: string; name: string; icon: string | null }
 
-const inputStyle = {
+const inputStyle: React.CSSProperties = {
   width: '100%',
-  background: '#0a0c10',
-  border: '0.5px solid rgba(255,255,255,0.08)',
+  background: 'var(--bg-input)',
+  border: '0.5px solid var(--border-input)',
   borderRadius: '8px',
   padding: '10px 14px',
   fontSize: '13px',
-  color: '#fff',
+  color: 'var(--text-primary)',
   outline: 'none',
 }
 
@@ -49,28 +49,28 @@ export default function SetBudgetModal({ isOpen, onClose, onSuccess }: {
       background: 'rgba(0,0,0,0.6)', padding: '24px',
     }}>
       <div style={{
-        background: '#161b27',
-        border: '0.5px solid rgba(255,255,255,0.08)',
+        background: 'var(--bg-card)',
+        border: '0.5px solid var(--border-input)',
         borderRadius: '16px', padding: '28px',
         width: '100%', maxWidth: '400px',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '500', color: '#fff' }}>Set Budget</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>Set Budget</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={18} />
           </button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>Category</label>
+            <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Category</label>
             <select value={form.categoryId} onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))} style={inputStyle}>
               <option value="">Select category</option>
               {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>Monthly limit (₱)</label>
+            <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Monthly limit (₱)</label>
             <input type="number" placeholder="0.00" value={form.amount}
               onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} style={inputStyle} />
           </div>
@@ -79,8 +79,8 @@ export default function SetBudgetModal({ isOpen, onClose, onSuccess }: {
         <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
           <button onClick={onClose} style={{
             flex: 1, background: 'transparent',
-            border: '0.5px solid rgba(255,255,255,0.1)',
-            color: 'rgba(255,255,255,0.5)', borderRadius: '8px',
+            border: '0.5px solid var(--border-strong)',
+            color: 'var(--text-secondary)', borderRadius: '8px',
             padding: '10px', fontSize: '13px', cursor: 'pointer',
           }}>Cancel</button>
           <button onClick={handleSubmit} disabled={loading} style={{
