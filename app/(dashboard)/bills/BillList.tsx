@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { FileText, CheckCircle, AlertCircle, Clock, Trash2, CheckCheck } from 'lucide-react'
+import { FileText, CheckCircle, AlertCircle, Clock, Trash2, CheckCheck, Download } from 'lucide-react'
 import { format } from 'date-fns'
+import { exportToCSV, exportToPDF } from '@/lib/export'
 
 type Bill = {
   id: string
@@ -85,6 +86,49 @@ export default function BillList({ refresh }: { refresh: number }) {
           </button>
         ))}
       </div>
+
+
+
+        {/* Export bar */}
+<div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px' }}>
+  <button
+    onClick={() => exportToCSV(bills)}
+    disabled={bills.length === 0}
+    style={{
+      display: 'flex', alignItems: 'center', gap: '6px',
+      padding: '7px 14px', borderRadius: '8px',
+      fontSize: '12px', fontWeight: '500', cursor: bills.length === 0 ? 'not-allowed' : 'pointer',
+      border: '0.5px solid var(--border-strong)',
+      background: 'transparent', color: 'var(--text-secondary)',
+      opacity: bills.length === 0 ? 0.5 : 1,
+    }}
+  >
+    <Download size={13} />
+    Export CSV
+  </button>
+  <button
+    onClick={() => exportToPDF(bills)}
+    disabled={bills.length === 0}
+    style={{
+      display: 'flex', alignItems: 'center', gap: '6px',
+      padding: '7px 14px', borderRadius: '8px',
+      fontSize: '12px', fontWeight: '500', cursor: bills.length === 0 ? 'not-allowed' : 'pointer',
+      border: '0.5px solid rgba(59,130,246,0.3)',
+      background: 'rgba(59,130,246,0.08)', color: '#60a5fa',
+      opacity: bills.length === 0 ? 0.5 : 1,
+    }}
+  >
+    <FileText size={13} />
+    Export PDF
+  </button>
+</div>
+
+
+
+
+
+
+
 
       <div style={{
         background: 'var(--bg-card)',

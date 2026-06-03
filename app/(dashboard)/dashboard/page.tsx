@@ -2,7 +2,7 @@ import { FileText, Wallet, AlertCircle, CheckCircle } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
-
+import BillCalendar from './BillCalendar'
 export default async function DashboardPage() {
   const supabase = await createSupabaseServer()
   const { data: { user } } = await supabase.auth.getUser()
@@ -117,9 +117,7 @@ export default async function DashboardPage() {
           border: '0.5px solid var(--border)',
           borderRadius: '12px', padding: '20px',
         }}>
-          <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '16px' }}>
-            Monthly spending
-          </h2>
+         <BillCalendar />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 0', gap: '8px' }}>
             <Wallet size={32} color="var(--text-faint)" />
             <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Charts coming soon</p>
