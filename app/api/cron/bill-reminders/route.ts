@@ -6,7 +6,6 @@ import { billReminderEmail } from '@/lib/bill-reminder-email'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function GET(req: Request) {
-  // Verify this is called by Vercel Cron (or you, for testing)
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -14,13 +13,18 @@ export async function GET(req: Request) {
 
   try {
     const now = new Date()
-    const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
-    // Find all unpaid bills due within the next 7 days, grouped by user
+    const startOfToday = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate()
+    ))
+    const in7Days = new Date(startOfToday.getTime() + 7 * 24 * 60 * 60 * 1000)
+
     const bills = await prisma.bill.findMany({
       where: {
         status: { in: ['UNPAID', 'OVERDUE'] },
-        dueDate: { gte: now, lte: in7Days },
+        dueDate: { gte: startOfToday, lte: in7Days },
       },
       include: {
         category: true,
@@ -33,7 +37,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: 'No upcoming bills to notify about.' })
     }
 
-    // Group bills by user
     const byUser = bills.reduce<Record<string, typeof bills>>((acc, bill) => {
       const uid = bill.userId
       if (!acc[uid]) acc[uid] = []
@@ -59,9 +62,9 @@ export async function GET(req: Request) {
       })
 
       const { error } = await resend.emails.send({
-        from: 'Billify <onboarding@resend.dev>', // ← change to your verified domain
+        from: 'Billify <onboarding@resend.dev>',
         to: user.email,
-        subject: `⏰ Billify Reminder: ${userBills.length} bill${userBills.length > 1 ? 's' : ''} due this week`,
+        subject: `⏰ Billify Reminder: ${userBills.length} bill${userBills.length > 1 ? 's' : ''} due in the next 7 days`,
         html,
         text,
       })
