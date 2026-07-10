@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { FileText, CheckCircle, AlertCircle, Clock, Trash2, CheckCheck, Download } from 'lucide-react'
 import { format } from 'date-fns'
 import { exportToCSV, exportToPDF } from '@/lib/export'
+import { getEffectiveStatus } from '@/lib/bill-status'
 
 type Bill = {
   id: string
@@ -63,7 +64,11 @@ export default function BillList({ refresh }: { refresh: number }) {
     setActionLoading(null)
   }
 
-  const filtered = filter === 'ALL' ? bills : bills.filter(b => b.status === filter)
+  // Filter using the *effective* status (computed live), not the raw DB field,
+  // so a bill dated yesterday shows as OVERDUE immediately without waiting for the cron.
+  const filtered = filter === 'ALL'
+    ? bills
+    : bills.filter(b => getEffectiveStatus(b) === filter)
 
   return (
     <div>
@@ -86,8 +91,6 @@ export default function BillList({ refresh }: { refresh: number }) {
           </button>
         ))}
       </div>
-
-
 
         {/* Export bar */}
 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px' }}>
@@ -123,13 +126,6 @@ export default function BillList({ refresh }: { refresh: number }) {
   </button>
 </div>
 
-
-
-
-
-
-
-
       <div style={{
         background: 'var(--bg-card)',
         border: '0.5px solid var(--border)',
@@ -152,7 +148,8 @@ export default function BillList({ refresh }: { refresh: number }) {
           </div>
         ) : (
           filtered.map((bill, i) => {
-            const status = statusConfig[bill.status]
+            const effectiveStatus = getEffectiveStatus(bill)
+            const status = statusConfig[effectiveStatus]
             const StatusIcon = status.icon
             const isLoading = actionLoading === bill.id
             return (
@@ -194,7 +191,7 @@ export default function BillList({ refresh }: { refresh: number }) {
                     ₱{bill.amount.toLocaleString()}
                   </span>
                   <div style={{ display: 'flex', gap: '4px' }}>
-                    {bill.status !== 'PAID' && (
+                    {effectiveStatus !== 'PAID' && (
                       <button
                         onClick={() => handleMarkPaid(bill.id)}
                         disabled={isLoading}

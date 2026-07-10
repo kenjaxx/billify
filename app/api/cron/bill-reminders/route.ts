@@ -13,18 +13,30 @@ export async function GET(req: Request) {
 
   try {
     const now = new Date()
-
     const startOfToday = new Date(Date.UTC(
       now.getUTCFullYear(),
       now.getUTCMonth(),
       now.getUTCDate()
     ))
+
+    // ── Step 1: Auto-flip overdue bills ──────────────────────────────────
+    // Any UNPAID bill whose due date has already passed becomes OVERDUE.
+    const overdueResult = await prisma.bill.updateMany({
+      where: {
+        status: 'UNPAID',
+        dueDate: { lt: startOfToday },
+      },
+      data: { status: 'OVERDUE' },
+    })
+
+    // ── Step 2: Gather bills that need a reminder ────────────────────────
+    // Window: overdue, due today, due within 3 days, due within 7 days.
     const in7Days = new Date(startOfToday.getTime() + 7 * 24 * 60 * 60 * 1000)
 
     const bills = await prisma.bill.findMany({
       where: {
         status: { in: ['UNPAID', 'OVERDUE'] },
-        dueDate: { gte: startOfToday, lte: in7Days },
+        dueDate: { lte: in7Days },
       },
       include: {
         category: true,
@@ -34,9 +46,13 @@ export async function GET(req: Request) {
     })
 
     if (bills.length === 0) {
-      return NextResponse.json({ message: 'No upcoming bills to notify about.' })
+      return NextResponse.json({
+        message: 'No bills due soon.',
+        overdueFlipped: overdueResult.count,
+      })
     }
 
+    // ── Step 3: Group by user ─────────────────────────────────────────────
     const byUser = bills.reduce<Record<string, typeof bills>>((acc, bill) => {
       const uid = bill.userId
       if (!acc[uid]) acc[uid] = []
@@ -58,13 +74,19 @@ export async function GET(req: Request) {
           dueDate: b.dueDate,
           categoryName: b.category.name,
           categoryIcon: b.category.icon ?? '📄',
+          isOverdue: b.status === 'OVERDUE',
         })),
       })
+
+      const overdueCount = userBills.filter(b => b.status === 'OVERDUE').length
+      const subjectUrgency = overdueCount > 0
+        ? `⚠️ ${overdueCount} overdue bill${overdueCount > 1 ? 's' : ''}`
+        : `⏰ ${userBills.length} bill${userBills.length > 1 ? 's' : ''} due soon`
 
       const { error } = await resend.emails.send({
         from: 'Billify <onboarding@resend.dev>',
         to: user.email,
-        subject: `⏰ Billify Reminder: ${userBills.length} bill${userBills.length > 1 ? 's' : ''} due in the next 7 days`,
+        subject: `${subjectUrgency} — Billify`,
         html,
         text,
       })
@@ -76,7 +98,11 @@ export async function GET(req: Request) {
       })
     }
 
-    return NextResponse.json({ notified: results.length, results })
+    return NextResponse.json({
+      overdueFlipped: overdueResult.count,
+      notified: results.length,
+      results,
+    })
   } catch (error) {
     console.error('Cron error:', error)
     return NextResponse.json({ error: 'Cron job failed' }, { status: 500 })
