@@ -46,7 +46,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+      <div className="stat-grid" style={{ marginBottom: '20px' }}>
         {statCards.map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} style={{
             background: 'var(--bg-card)',
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '12px' }}>
+      <div className="dashboard-content-grid">
         <div style={{
           background: 'var(--bg-card)',
           border: '0.5px solid var(--border)',

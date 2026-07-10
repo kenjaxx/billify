@@ -49,7 +49,7 @@ export default function ReportsPage() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+      <div className="reports-summary-grid" style={{ marginBottom: '20px' }}>
         {summaryCards.map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} style={{
             background: 'var(--bg-card)',

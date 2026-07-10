@@ -93,7 +93,7 @@ export default function BillList({ refresh }: { refresh: number }) {
       </div>
 
         {/* Export bar */}
-<div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px' }}>
+<div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
   <button
     onClick={() => exportToCSV(bills)}
     disabled={bills.length === 0}

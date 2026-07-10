@@ -59,6 +59,7 @@ html, body {
   font-family: var(--font-sans, sans-serif);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /* Smooth theme transitions — only on properties we care about, not all */
@@ -90,6 +91,37 @@ a { text-decoration: none; }
   .dashboard-main {
     margin-left: 220px;
     padding: 88px 32px 80px 32px;
+  }
+}
+
+/* ── Responsive grids ── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.dashboard-content-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 12px;
+}
+
+.reports-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dashboard-content-grid {
+    grid-template-columns: 1fr;
+  }
+  .reports-summary-grid {
+    grid-template-columns: 1fr;
   }
 }
 
