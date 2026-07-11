@@ -3,14 +3,25 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
 import { validateBudgetInput } from '@/lib/validation'
 
-export async function GET() {
+function parseMonthYear(monthRaw: unknown, yearRaw: unknown) {
+  const now = new Date()
+  const month = Number(monthRaw)
+  const year = Number(yearRaw)
+  const validMonth = Number.isInteger(month) && month >= 1 && month <= 12 ? month : now.getMonth() + 1
+  const validYear = Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : now.getFullYear()
+  return { month: validMonth, year: validYear }
+}
+
+export async function GET(req: Request) {
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const now = new Date()
+    const { searchParams } = new URL(req.url)
+    const { month, year } = parseMonthYear(searchParams.get('month'), searchParams.get('year'))
+
     const budgets = await prisma.budget.findMany({
-      where: { userId: user.id, month: now.getMonth() + 1, year: now.getFullYear() },
+      where: { userId: user.id, month, year },
       include: { category: true },
     })
     return NextResponse.json(budgets)
@@ -31,6 +42,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
     const { categoryId, amount } = validation.data
+    const { month, year } = parseMonthYear(body.month, body.year)
 
     const category = await prisma.category.findFirst({
       where: { id: categoryId, userId: user.id },
@@ -39,9 +51,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid category.' }, { status: 400 })
     }
 
-    const now = new Date()
     const existing = await prisma.budget.findFirst({
-      where: { userId: user.id, categoryId, month: now.getMonth() + 1, year: now.getFullYear() },
+      where: { userId: user.id, categoryId, month, year },
     })
 
     if (existing) {
@@ -53,7 +64,7 @@ export async function POST(req: Request) {
     }
 
     const budget = await prisma.budget.create({
-      data: { amount, month: now.getMonth() + 1, year: now.getFullYear(), userId: user.id, categoryId },
+      data: { amount, month, year, userId: user.id, categoryId },
     })
     return NextResponse.json(budget)
   } catch (error) {

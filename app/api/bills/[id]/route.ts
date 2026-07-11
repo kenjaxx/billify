@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
 import { validateBillInput } from '@/lib/validation'
+import { createNextRecurrence } from '@/lib/bill-recurrence'
 
 export async function PATCH(
   req: Request,
@@ -21,6 +22,8 @@ export async function PATCH(
 
     // ── Status-only update (mark paid / unpaid) ─────────────────────────
     if (body.status && Object.keys(body).length === 1) {
+      const wasUnpaid = existing.status !== 'PAID'
+
       const updated = await prisma.bill.update({
         where: { id },
         data: {
@@ -29,34 +32,8 @@ export async function PATCH(
         },
       })
 
-      // Recurring bill marked as paid -> auto-create next month's instance
-      if (body.status === 'PAID' && existing.isRecurring) {
-        const nextDueDate = new Date(existing.dueDate)
-        nextDueDate.setMonth(nextDueDate.getMonth() + 1)
-
-        const alreadyExists = await prisma.bill.findFirst({
-          where: {
-            userId: user.id,
-            title: existing.title,
-            categoryId: existing.categoryId,
-            dueDate: nextDueDate,
-          },
-        })
-
-        if (!alreadyExists) {
-          await prisma.bill.create({
-            data: {
-              title: existing.title,
-              amount: existing.amount,
-              dueDate: nextDueDate,
-              isRecurring: true,
-              notes: existing.notes,
-              status: 'UNPAID',
-              userId: user.id,
-              categoryId: existing.categoryId,
-            },
-          })
-        }
+      if (body.status === 'PAID' && wasUnpaid && existing.isRecurring) {
+        await createNextRecurrence(existing)
       }
 
       return NextResponse.json(updated)

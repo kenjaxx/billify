@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { User, Sun, Moon, Save } from 'lucide-react'
+import Link from 'next/link'
+import { User, Sun, Moon, Save, Tags } from 'lucide-react'
 import { useTheme } from '@/lib/theme-context'
 import { supabase } from '@/lib/supabase'
 
@@ -34,7 +35,6 @@ export default function SettingsPage() {
     setSaving(true)
     setMessage(null)
     try {
-      // 1. Update our own database (Prisma User table)
       const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -43,11 +43,7 @@ export default function SettingsPage() {
       const result = await res.json()
       if (!res.ok) throw new Error(result.error ?? 'Failed to save')
 
-      // 2. Also update Supabase Auth metadata so the name shown
-      //    in the TopBar / anywhere else that reads auth data stays in sync
-      const { error: authError } = await supabase.auth.updateUser({
-        data: { name },
-      })
+      const { error: authError } = await supabase.auth.updateUser({ data: { name } })
       if (authError) throw new Error(authError.message)
 
       setMessage({ type: 'success', text: 'Settings saved.' })
@@ -157,7 +153,7 @@ export default function SettingsPage() {
       <div style={{
         background: 'var(--bg-card)',
         border: '0.5px solid var(--border)',
-        borderRadius: '12px', padding: '20px',
+        borderRadius: '12px', padding: '20px', marginBottom: '16px',
       }}>
         <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '16px' }}>
           Appearance
@@ -181,6 +177,33 @@ export default function SettingsPage() {
             {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
             Switch to {theme === 'dark' ? 'light' : 'dark'}
           </button>
+        </div>
+      </div>
+
+      <div style={{
+        background: 'var(--bg-card)',
+        border: '0.5px solid var(--border)',
+        borderRadius: '12px', padding: '20px',
+      }}>
+        <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '16px' }}>
+          Categories
+        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <p style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Manage categories</p>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+              Add, edit, or remove bill categories
+            </p>
+          </div>
+          <Link href="/categories" style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            background: 'var(--bg-tertiary)', border: '0.5px solid var(--border)',
+            borderRadius: '8px', padding: '8px 14px',
+            fontSize: '12px', color: 'var(--text-secondary)', textDecoration: 'none',
+          }}>
+            <Tags size={14} />
+            Open
+          </Link>
         </div>
       </div>
     </div>

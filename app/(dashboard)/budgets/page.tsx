@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Wallet } from 'lucide-react'
+import { Plus, Wallet, ChevronLeft, ChevronRight } from 'lucide-react'
 import SetBudgetModal from '@/components/budgets/SetBudgetModal'
 
 type Budget = {
@@ -10,9 +10,13 @@ type Budget = {
   category: { id: string; name: string; icon: string | null; color: string | null }
 }
 
-type Bill = { amount: number; status: string; categoryId: string }
+type Bill = { amount: number; status: string; categoryId: string; dueDate: string }
 
 export default function BudgetsPage() {
+  const [viewDate, setViewDate] = useState(() => {
+    const d = new Date()
+    return { month: d.getMonth() + 1, year: d.getFullYear() }
+  })
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [bills, setBills] = useState<Bill[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -22,29 +26,46 @@ export default function BudgetsPage() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
-      const [b, bi] = await Promise.all([fetch('/api/budgets'), fetch('/api/bills')])
+      const [b, bi] = await Promise.all([
+        fetch(`/api/budgets?month=${viewDate.month}&year=${viewDate.year}`),
+        fetch('/api/bills'),
+      ])
       setBudgets(await b.json())
       setBills(await bi.json())
       setLoading(false)
     }
     fetchData()
-  }, [refresh])
+  }, [refresh, viewDate])
 
   const getSpent = (categoryId: string) =>
-    bills.filter(b => b.categoryId === categoryId).reduce((sum, b) => sum + b.amount, 0)
+    bills
+      .filter(b => b.categoryId === categoryId)
+      .filter(b => {
+        const d = new Date(b.dueDate)
+        return d.getMonth() + 1 === viewDate.month && d.getFullYear() === viewDate.year
+      })
+      .reduce((sum, b) => sum + b.amount, 0)
 
   const getPct = (spent: number, budget: number) => Math.min(Math.round((spent / budget) * 100), 100)
   const getBarColor = (pct: number) => pct >= 100 ? '#f87171' : pct >= 75 ? '#fbbf24' : '#34d399'
 
+  const monthLabel = new Date(viewDate.year, viewDate.month - 1, 1).toLocaleString('default', { month: 'long' })
+
+  const prevMonth = () => setViewDate(({ month, year }) =>
+    month === 1 ? { month: 12, year: year - 1 } : { month: month - 1, year })
+  const nextMonth = () => setViewDate(({ month, year }) =>
+    month === 12 ? { month: 1, year: year + 1 } : { month: month + 1, year })
+
   const now = new Date()
+  const isCurrentMonth = viewDate.month === now.getMonth() + 1 && viewDate.year === now.getFullYear()
 
   return (
     <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: '500', color: 'var(--text-primary)' }}>Budgets</h1>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            {now.toLocaleString('default', { month: 'long' })} {now.getFullYear()} — spending limits per category
+            Spending limits per category
           </p>
         </div>
         <button onClick={() => setIsModalOpen(true)} style={{
@@ -54,6 +75,38 @@ export default function BudgetsPage() {
           fontSize: '13px', fontWeight: '500', cursor: 'pointer',
         }}>
           <Plus size={15} /> Set Budget
+        </button>
+      </div>
+
+      {/* Month navigator */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
+        marginBottom: '20px',
+        background: 'var(--bg-card)', border: '0.5px solid var(--border)',
+        borderRadius: '10px', padding: '10px',
+      }}>
+        <button onClick={prevMonth} style={{
+          width: '28px', height: '28px', borderRadius: '6px',
+          border: '0.5px solid var(--border-strong)',
+          background: 'transparent', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text-muted)',
+        }}>
+          <ChevronLeft size={14} />
+        </button>
+        <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', minWidth: '130px', textAlign: 'center' }}>
+          {monthLabel} {viewDate.year} {isCurrentMonth && (
+            <span style={{ fontSize: '10px', color: '#60a5fa', marginLeft: '6px' }}>· Current</span>
+          )}
+        </span>
+        <button onClick={nextMonth} style={{
+          width: '28px', height: '28px', borderRadius: '6px',
+          border: '0.5px solid var(--border-strong)',
+          background: 'transparent', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text-muted)',
+        }}>
+          <ChevronRight size={14} />
         </button>
       </div>
 
@@ -74,7 +127,7 @@ export default function BudgetsPage() {
         ) : budgets.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px', gap: '8px' }}>
             <Wallet size={36} color="var(--text-faint)" />
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No budgets set yet</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No budgets set for {monthLabel} {viewDate.year}</p>
             <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Set a budget limit per category</p>
           </div>
         ) : (
@@ -125,6 +178,8 @@ export default function BudgetsPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => { setRefresh(p => p + 1); setIsModalOpen(false) }}
+        month={viewDate.month}
+        year={viewDate.year}
       />
     </div>
   )

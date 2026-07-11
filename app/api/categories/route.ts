@@ -11,6 +11,7 @@ export async function GET() {
     const categories = await prisma.category.findMany({
       where: { userId: user.id },
       orderBy: { name: 'asc' },
+      include: { _count: { select: { bills: true, budgets: true } } },
     })
     return NextResponse.json(categories)
   } catch (error) {

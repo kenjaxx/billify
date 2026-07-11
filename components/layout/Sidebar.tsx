@@ -7,6 +7,7 @@ import {
   FileText,
   Wallet,
   BarChart2,
+  Tags,
   LogOut,
   AlertTriangle,
 } from 'lucide-react'
@@ -18,6 +19,7 @@ const navItems = [
   { label: 'Bills', href: '/bills', icon: FileText },
   { label: 'Budgets', href: '/budgets', icon: Wallet },
   { label: 'Reports', href: '/reports', icon: BarChart2 },
+  { label: 'Categories', href: '/categories', icon: Tags },
 ]
 
 function LogoutConfirmModal({

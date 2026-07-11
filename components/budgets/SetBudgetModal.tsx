@@ -16,8 +16,8 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
 }
 
-export default function SetBudgetModal({ isOpen, onClose, onSuccess }: {
-  isOpen: boolean; onClose: () => void; onSuccess: () => void
+export default function SetBudgetModal({ isOpen, onClose, onSuccess, month, year }: {
+  isOpen: boolean; onClose: () => void; onSuccess: () => void; month: number; year: number
 }) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
@@ -33,7 +33,7 @@ export default function SetBudgetModal({ isOpen, onClose, onSuccess }: {
     await fetch('/api/budgets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ categoryId: form.categoryId, amount: parseFloat(form.amount) }),
+      body: JSON.stringify({ categoryId: form.categoryId, amount: parseFloat(form.amount), month, year }),
     })
     setLoading(false)
     setForm({ categoryId: '', amount: '' })

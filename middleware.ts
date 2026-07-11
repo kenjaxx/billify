@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
   // getUser() hits Supabase Auth server — not just the local JWT
   const { data: { user }, error } = await supabase.auth.getUser()
 
-  const protectedRoutes = ['/dashboard', '/bills', '/budgets', '/reports', '/settings']
+  const protectedRoutes = ['/dashboard', '/bills', '/budgets', '/reports', '/settings', '/categories']
   const authRoutes = ['/login', '/register']
 
   const isProtected = protectedRoutes.some(route =>
