@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
+import { validateBillInput } from '@/lib/validation'
 
 export async function GET() {
   try {
@@ -25,16 +26,30 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await req.json()
+    const validation = validateBillInput(body)
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+    const { title, amount, dueDate, categoryId, isRecurring, notes } = validation.data
+
+    // Make sure the category actually belongs to this user
+    const category = await prisma.category.findFirst({
+      where: { id: categoryId, userId: user.id },
+    })
+    if (!category) {
+      return NextResponse.json({ error: 'Invalid category.' }, { status: 400 })
+    }
+
     const bill = await prisma.bill.create({
       data: {
-        title: body.title,
-        amount: body.amount,
-        dueDate: new Date(body.dueDate),
-        isRecurring: body.isRecurring,
-        notes: body.notes,
+        title,
+        amount,
+        dueDate: new Date(dueDate),
+        isRecurring,
+        notes,
         status: 'UNPAID',
         userId: user.id,
-        categoryId: body.categoryId,
+        categoryId,
       },
     })
     return NextResponse.json(bill)

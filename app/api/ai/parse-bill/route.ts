@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/get-user'
 import { prisma } from '@/lib/prisma'
 
+const devLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') console.log(...args)
+}
+
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser()
@@ -10,12 +14,9 @@ export async function POST(req: Request) {
     const { text } = await req.json()
     if (!text) return NextResponse.json({ error: 'No text provided' }, { status: 400 })
 
-    console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'loaded ✅' : 'missing ❌')
+    devLog('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'loaded ✅' : 'missing ❌')
 
-    const categories = await prisma.category.findMany({
-      where: { userId: user.id },
-    })
-
+    const categories = await prisma.category.findMany({ where: { userId: user.id } })
     const categoryList = categories.map(c => `{ "id": "${c.id}", "name": "${c.name}" }`).join(', ')
     const currentYear = new Date().getFullYear()
 
@@ -58,29 +59,27 @@ Return this exact format:
     )
 
     const geminiData = await geminiRes.json()
-    console.log('Gemini status:', geminiRes.status)
-    console.log('Gemini response:', JSON.stringify(geminiData, null, 2))
+    devLog('Gemini status:', geminiRes.status)
+    devLog('Gemini response:', JSON.stringify(geminiData, null, 2))
 
-    // Check if Gemini returned an error
     if (!geminiRes.ok || geminiData.error) {
       console.error('Gemini API error:', geminiData.error)
-      return NextResponse.json({ 
-        error: `Gemini error: ${geminiData.error?.message ?? 'Unknown error'}` 
+      return NextResponse.json({
+        error: `Gemini error: ${geminiData.error?.message ?? 'Unknown error'}`
       }, { status: 500 })
     }
 
     const raw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-    console.log('Raw text:', raw)
+    devLog('Raw text:', raw)
 
     if (!raw) {
       return NextResponse.json({ error: 'Gemini returned empty response' }, { status: 500 })
     }
 
     const cleaned = raw.replace(/```json|```/g, '').trim()
-    console.log('Cleaned:', cleaned)
+    devLog('Cleaned:', cleaned)
 
     const parsed = JSON.parse(cleaned)
-
     return NextResponse.json({ parsed, categories })
   } catch (error) {
     console.error('AI parse error:', error instanceof Error ? error.message : error)

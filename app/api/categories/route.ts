@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
+import { validateCategoryInput } from '@/lib/validation'
 
 export async function GET() {
   try {
@@ -24,13 +25,14 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await req.json()
+    const validation = validateCategoryInput(body)
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+    const { name, icon, color } = validation.data
+
     const category = await prisma.category.create({
-      data: {
-        name: body.name,
-        icon: body.icon,
-        color: body.color,
-        userId: user.id,
-      },
+      data: { name, icon, color, userId: user.id },
     })
     return NextResponse.json(category)
   } catch (error) {

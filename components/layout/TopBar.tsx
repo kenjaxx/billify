@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { Sun, Moon, LogOut, User, ChevronDown, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme-context'
@@ -87,36 +88,23 @@ export default function TopBar() {
   return (
     <>
       <style>{`
-        .topbar {
-          display: none;
-        }
+        .topbar { display: none; }
         @media (min-width: 768px) {
           .topbar {
             display: flex !important;
-            position: fixed;
-            top: 0;
-            right: 0;
-            left: 220px;
-            height: 56px;
-            z-index: 30;
+            position: fixed; top: 0; right: 0; left: 220px;
+            height: 56px; z-index: 30;
             background: var(--topbar-bg);
             border-bottom: 0.5px solid var(--border);
-            align-items: center;
-            justify-content: flex-end;
-            padding: 0 28px;
-            gap: 8px;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            align-items: center; justify-content: flex-end;
+            padding: 0 28px; gap: 8px;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
           }
         }
-        @keyframes dropIn {
-          from { opacity: 0; transform: translateY(-6px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes dropIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
 
       <header className="topbar">
-        {/* Theme toggle */}
         <button
           onClick={toggleTheme}
           title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -131,7 +119,6 @@ export default function TopBar() {
           {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
         </button>
 
-        {/* Profile menu */}
         <div ref={ref} style={{ position: 'relative' }}>
           <button
             onClick={() => setOpen(o => !o)}
@@ -175,7 +162,6 @@ export default function TopBar() {
               overflow: 'hidden',
               animation: 'dropIn 0.12s ease',
             }}>
-              {/* User info header */}
               <div style={{ padding: '14px 16px', borderBottom: '0.5px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{
@@ -197,23 +183,21 @@ export default function TopBar() {
                 </div>
               </div>
 
-              {/* Menu items */}
               <div style={{ padding: '6px' }}>
-                <button disabled style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-                  padding: '9px 10px', borderRadius: '8px',
-                  background: 'transparent', border: 'none',
-                  fontSize: '13px', color: 'var(--text-muted)',
-                  cursor: 'not-allowed', opacity: 0.5, textAlign: 'left',
-                }}>
+                <Link
+                  href="/settings"
+                  onClick={() => setOpen(false)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '9px 10px', borderRadius: '8px',
+                    background: 'transparent',
+                    fontSize: '13px', color: 'var(--text-secondary)',
+                    cursor: 'pointer', textAlign: 'left', textDecoration: 'none',
+                  }}
+                >
                   <User size={14} />
-                  Profile
-                  <span style={{
-                    marginLeft: 'auto', fontSize: '10px',
-                    color: 'var(--text-muted)', background: 'var(--bg-tertiary)',
-                    padding: '2px 6px', borderRadius: '4px',
-                  }}>Soon</span>
-                </button>
+                  Profile & settings
+                </Link>
 
                 <button
                   onClick={() => { toggleTheme(); setOpen(false) }}

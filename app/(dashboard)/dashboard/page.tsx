@@ -118,10 +118,7 @@ export default async function DashboardPage() {
           borderRadius: '12px', padding: '20px',
         }}>
          <BillCalendar />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 0', gap: '8px' }}>
-            <Wallet size={32} color="var(--text-faint)" />
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Charts coming soon</p>
-          </div>
+         
         </div>
       </div>
     </div>

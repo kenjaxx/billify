@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { FileText, CheckCircle, AlertCircle, Clock, Trash2, CheckCheck, Download } from 'lucide-react'
+import { FileText, CheckCircle, AlertCircle, Clock, Trash2, CheckCheck, Download, Pencil } from 'lucide-react'
 import { format } from 'date-fns'
 import { exportToCSV, exportToPDF } from '@/lib/export'
 import { getEffectiveStatus } from '@/lib/bill-status'
+import EditBillModal from './EditBillModal'
 
 type Bill = {
   id: string
@@ -12,6 +13,9 @@ type Bill = {
   amount: number
   dueDate: string
   status: 'PAID' | 'UNPAID' | 'OVERDUE'
+  categoryId: string
+  isRecurring: boolean
+  notes: string | null
   category: { name: string; icon: string | null; color: string | null }
 }
 
@@ -28,6 +32,7 @@ export default function BillList({ refresh }: { refresh: number }) {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<typeof filters[number]>('ALL')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [editingBill, setEditingBill] = useState<Bill | null>(null)
 
   useEffect(() => { fetchBills() }, [refresh])
 
@@ -64,15 +69,12 @@ export default function BillList({ refresh }: { refresh: number }) {
     setActionLoading(null)
   }
 
-  // Filter using the *effective* status (computed live), not the raw DB field,
-  // so a bill dated yesterday shows as OVERDUE immediately without waiting for the cron.
   const filtered = filter === 'ALL'
     ? bills
     : bills.filter(b => getEffectiveStatus(b) === filter)
 
   return (
     <div>
-      {/* Filters */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
         {filters.map(f => (
           <button
@@ -92,39 +94,38 @@ export default function BillList({ refresh }: { refresh: number }) {
         ))}
       </div>
 
-        {/* Export bar */}
-<div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-  <button
-    onClick={() => exportToCSV(bills)}
-    disabled={bills.length === 0}
-    style={{
-      display: 'flex', alignItems: 'center', gap: '6px',
-      padding: '7px 14px', borderRadius: '8px',
-      fontSize: '12px', fontWeight: '500', cursor: bills.length === 0 ? 'not-allowed' : 'pointer',
-      border: '0.5px solid var(--border-strong)',
-      background: 'transparent', color: 'var(--text-secondary)',
-      opacity: bills.length === 0 ? 0.5 : 1,
-    }}
-  >
-    <Download size={13} />
-    Export CSV
-  </button>
-  <button
-    onClick={() => exportToPDF(bills)}
-    disabled={bills.length === 0}
-    style={{
-      display: 'flex', alignItems: 'center', gap: '6px',
-      padding: '7px 14px', borderRadius: '8px',
-      fontSize: '12px', fontWeight: '500', cursor: bills.length === 0 ? 'not-allowed' : 'pointer',
-      border: '0.5px solid rgba(59,130,246,0.3)',
-      background: 'rgba(59,130,246,0.08)', color: '#60a5fa',
-      opacity: bills.length === 0 ? 0.5 : 1,
-    }}
-  >
-    <FileText size={13} />
-    Export PDF
-  </button>
-</div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+        <button
+          onClick={() => exportToCSV(bills)}
+          disabled={bills.length === 0}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            padding: '7px 14px', borderRadius: '8px',
+            fontSize: '12px', fontWeight: '500', cursor: bills.length === 0 ? 'not-allowed' : 'pointer',
+            border: '0.5px solid var(--border-strong)',
+            background: 'transparent', color: 'var(--text-secondary)',
+            opacity: bills.length === 0 ? 0.5 : 1,
+          }}
+        >
+          <Download size={13} />
+          Export CSV
+        </button>
+        <button
+          onClick={() => exportToPDF(bills)}
+          disabled={bills.length === 0}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            padding: '7px 14px', borderRadius: '8px',
+            fontSize: '12px', fontWeight: '500', cursor: bills.length === 0 ? 'not-allowed' : 'pointer',
+            border: '0.5px solid rgba(59,130,246,0.3)',
+            background: 'rgba(59,130,246,0.08)', color: '#60a5fa',
+            opacity: bills.length === 0 ? 0.5 : 1,
+          }}
+        >
+          <FileText size={13} />
+          Export PDF
+        </button>
+      </div>
 
       <div style={{
         background: 'var(--bg-card)',
@@ -170,7 +171,18 @@ export default function BillList({ refresh }: { refresh: number }) {
                     {bill.category.icon ?? '📄'}
                   </div>
                   <div>
-                    <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>{bill.title}</p>
+                    <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                      {bill.title}
+                      {bill.isRecurring && (
+                        <span style={{
+                          marginLeft: '6px', fontSize: '9px', fontWeight: '600',
+                          color: '#60a5fa', background: 'rgba(59,130,246,0.12)',
+                          padding: '1px 6px', borderRadius: '99px',
+                        }}>
+                          RECURRING
+                        </span>
+                      )}
+                    </p>
                     <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                       Due {format(new Date(bill.dueDate), 'MMM d, yyyy')} · {bill.category.name}
                     </p>
@@ -206,6 +218,18 @@ export default function BillList({ refresh }: { refresh: number }) {
                       </button>
                     )}
                     <button
+                      onClick={() => setEditingBill(bill)}
+                      disabled={isLoading}
+                      title="Edit"
+                      style={{
+                        width: '30px', height: '30px', borderRadius: '6px', border: 'none',
+                        background: 'transparent', cursor: 'pointer', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
+                      }}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
                       onClick={() => handleDelete(bill.id)}
                       disabled={isLoading}
                       title="Delete"
@@ -224,6 +248,12 @@ export default function BillList({ refresh }: { refresh: number }) {
           })
         )}
       </div>
+
+      <EditBillModal
+        bill={editingBill}
+        onClose={() => setEditingBill(null)}
+        onSuccess={() => { setEditingBill(null); fetchBills() }}
+      />
     </div>
   )
 }
