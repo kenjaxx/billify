@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import BillCalendar from './BillCalendar'
+import InsightsWidget from './InsightsWidget'
 export default async function DashboardPage() {
   const supabase = await createSupabaseServer()
   const { data: { user } } = await supabase.auth.getUser()
@@ -64,6 +65,10 @@ export default async function DashboardPage() {
             <p style={{ fontSize: '20px', fontWeight: '500', color: 'var(--text-primary)' }}>{value}</p>
           </div>
         ))}
+      </div>
+
+       <div style={{ marginBottom: '20px' }}>
+        <InsightsWidget />
       </div>
 
       <div className="dashboard-content-grid">
