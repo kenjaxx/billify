@@ -10,12 +10,15 @@ const ThemeContext = createContext<{
 }>({ theme: 'dark', toggleTheme: () => {} })
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark')
-
-  useEffect(() => {
-    const saved = localStorage.getItem('billify-theme') as Theme | null
-    if (saved) setTheme(saved)
-  }, [])
+  // Initialize from the attribute the inline script in layout.tsx already
+  // set, so React's first render matches what's on screen — no flash.
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof document !== 'undefined') {
+      const attr = document.documentElement.getAttribute('data-theme')
+      if (attr === 'light' || attr === 'dark') return attr
+    }
+    return 'dark'
+  })
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { X, Sparkles, PenLine } from 'lucide-react'
-
+import { toast } from 'sonner'
+import { useTheme } from '@/lib/theme-context'
 type Category = { id: string; name: string; icon: string | null }
 
 const inputStyle: React.CSSProperties = {
@@ -29,11 +30,11 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
   const [mode, setMode] = useState<'ai' | 'manual'>('ai')
   const [aiText, setAiText] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
-  const [aiError, setAiError] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
   const [catLoading, setCatLoading] = useState(false)
   const [catError, setCatError] = useState('')
   const [loading, setLoading] = useState(false)
+  const { theme } = useTheme()
   const [form, setForm] = useState({
     title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: ''
   })
@@ -62,7 +63,6 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
   const handleAIParse = async () => {
     if (!aiText.trim()) return
     setAiLoading(true)
-    setAiError('')
     try {
       const res = await fetch('/api/ai/parse-bill', {
         method: 'POST',
@@ -70,7 +70,7 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
         body: JSON.stringify({ text: aiText }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) throw new Error(data.error ?? 'Failed to parse')
 
       const { parsed } = data
       setForm(prev => ({
@@ -80,11 +80,13 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
         categoryId: parsed.categoryId ?? '',
         dueDate: parsed.dueDate ?? '',
       }))
-      // Switch to manual so user can review and confirm
       setMode('manual')
     } catch (err) {
       console.error(err)
-      setAiError('Could not parse your input. Please try again or use manual entry.')
+      const message = err instanceof Error && err.message.includes('Too many')
+        ? err.message
+        : 'Could not parse your input. Please try again or use manual entry.'
+      toast.error(message)
     } finally {
       setAiLoading(false)
     }
@@ -94,17 +96,23 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
     if (!form.title || !form.amount || !form.categoryId || !form.dueDate) return
     setLoading(true)
     try {
-      await fetch('/api/bills', {
+      const res = await fetch('/api/bills', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, amount: parseFloat(form.amount) }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? 'Failed to add bill')
+      }
       setForm({ title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: '' })
       setAiText('')
       setMode('ai')
+      toast.success('Bill added.')
       onSuccess()
     } catch (err) {
       console.error(err)
+      toast.error(err instanceof Error ? err.message : 'Failed to add bill.')
     } finally {
       setLoading(false)
     }
@@ -113,7 +121,6 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
   const handleClose = () => {
     setForm({ title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: '' })
     setAiText('')
-    setAiError('')
     setMode('ai')
     onClose()
   }
@@ -126,24 +133,21 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: 'rgba(0,0,0,0.6)', padding: '24px',
     }}>
-      
-        <div style={{
-          background: 'var(--bg-card)',
-          border: '0.5px solid var(--border-input)',
-          borderRadius: '16px', padding: '28px',
-          width: '100%', maxWidth: '440px',
-          maxHeight: '90vh',        
-          overflowY: 'auto',       
-        }}>
-        {/* Header */}
+      <div style={{
+        background: 'var(--bg-card)',
+        border: '0.5px solid var(--border-input)',
+        borderRadius: '16px', padding: '28px',
+        width: '100%', maxWidth: '440px',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+      }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>Add new bill</h2>
-          <button onClick={handleClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button onClick={handleClose} aria-label="Close" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={18} />
           </button>
         </div>
 
-        {/* Mode toggle */}
         <div style={{
           display: 'flex', gap: '6px',
           background: 'var(--bg-tertiary)',
@@ -169,7 +173,6 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
           ))}
         </div>
 
-        {/* AI mode */}
         {mode === 'ai' && (
           <div>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px', lineHeight: '1.6' }}>
@@ -189,9 +192,6 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
                 }}
                 style={{ ...inputStyle, resize: 'none', lineHeight: '1.6' }}
               />
-              {aiError && (
-                <p style={{ fontSize: '12px', color: '#f87171' }}>{aiError}</p>
-              )}
               <button
                 onClick={handleAIParse}
                 disabled={aiLoading || !aiText.trim()}
@@ -212,7 +212,6 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
           </div>
         )}
 
-        {/* Manual / review form */}
         {mode === 'manual' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {mode === 'manual' && form.title && (
@@ -256,9 +255,9 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
             </div>
             <div>
               <label style={labelStyle}>Due date</label>
-              <input type="date" value={form.dueDate}
-                onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
-                style={{ ...inputStyle, colorScheme: 'inherit' }} />
+             <input type="date" value={form.dueDate}
+  onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
+  style={{ ...inputStyle, colorScheme: theme }} />
             </div>
             <div>
               <label style={labelStyle}>Notes (optional)</label>
@@ -277,7 +276,6 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
           </div>
         )}
 
-        {/* Footer buttons */}
         {mode === 'manual' && (
           <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
             <button onClick={handleClose} style={{

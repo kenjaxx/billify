@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { User, Sun, Moon, Save, Tags } from 'lucide-react'
+import { toast } from 'sonner'
 import { useTheme } from '@/lib/theme-context'
 import { supabase } from '@/lib/supabase'
 
@@ -19,7 +20,6 @@ export default function SettingsPage() {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     fetch('/api/settings')
@@ -33,7 +33,6 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setSaving(true)
-    setMessage(null)
     try {
       const res = await fetch('/api/settings', {
         method: 'PATCH',
@@ -46,9 +45,9 @@ export default function SettingsPage() {
       const { error: authError } = await supabase.auth.updateUser({ data: { name } })
       if (authError) throw new Error(authError.message)
 
-      setMessage({ type: 'success', text: 'Settings saved.' })
+      toast.success('Settings saved.')
     } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to save.' })
+      toast.error(err instanceof Error ? err.message : 'Failed to save.')
     } finally {
       setSaving(false)
     }
@@ -85,19 +84,6 @@ export default function SettingsPage() {
           <User size={16} color="var(--text-secondary)" />
           <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)' }}>Profile</h2>
         </div>
-
-        {message && (
-          <div style={{
-            marginBottom: '16px',
-            padding: '10px 14px', borderRadius: '8px',
-            fontSize: '13px',
-            background: message.type === 'success' ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)',
-            color: message.type === 'success' ? '#34d399' : '#f87171',
-            border: `0.5px solid ${message.type === 'success' ? 'rgba(52,211,153,0.2)' : 'rgba(248,113,113,0.2)'}`,
-          }}>
-            {message.text}
-          </div>
-        )}
 
         <div style={{ marginBottom: '14px' }}>
           <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
@@ -167,6 +153,7 @@ export default function SettingsPage() {
           </div>
           <button
             onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               background: 'var(--bg-tertiary)', border: '0.5px solid var(--border)',

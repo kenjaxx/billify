@@ -118,8 +118,8 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* Password */}
-        <div style={{ marginBottom: '20px' }}>
+       {/* Password */}
+        <div style={{ marginBottom: '8px' }}>
           <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>
             Password
           </label>
@@ -141,6 +141,14 @@ export default function LoginPage() {
             }}
           />
         </div>
+
+        <div style={{ textAlign: 'right', marginBottom: '20px' }}>
+          <a href="/forgot-password" style={{ fontSize: '11px', color: '#60a5fa' }}>
+            Forgot password?
+          </a>
+        </div>
+
+        
 
         {/* Button */}
         <button

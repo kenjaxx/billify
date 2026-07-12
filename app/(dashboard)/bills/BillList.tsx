@@ -6,10 +6,12 @@ import {
   Download, Pencil, Search, ArrowUpDown, CalendarDays,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { toast } from 'sonner'
 import { exportToCSV, exportToPDF } from '@/lib/export'
 import { getEffectiveStatus } from '@/lib/bill-status'
 import EditBillModal from './EditBillModal'
-
+import ConfirmDialog from '@/components/ui/confirm-dialog'
+import { useTheme } from '@/lib/theme-context'
 type Bill = {
   id: string
   title: string
@@ -43,6 +45,11 @@ const selectStyle: React.CSSProperties = {
   cursor: 'pointer',
 }
 
+type PendingDelete =
+  | { type: 'single'; id: string; title: string }
+  | { type: 'bulk'; count: number }
+  | null
+
 export default function BillList({ refresh }: { refresh: number }) {
   const [bills, setBills] = useState<Bill[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,16 +57,19 @@ export default function BillList({ refresh }: { refresh: number }) {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [editingBill, setEditingBill] = useState<Bill | null>(null)
 
-  // Search / sort / date range
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('dueDateAsc')
   const [dateRange, setDateRange] = useState<DateRangeOption>('all')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
 
-  // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
+
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  
+  const { theme } = useTheme()
 
   useEffect(() => { fetchBills() }, [refresh])
 
@@ -72,32 +82,67 @@ export default function BillList({ refresh }: { refresh: number }) {
     } catch (err) {
       console.error(err)
       setBills([])
+      toast.error('Could not load bills.')
     } finally {
       setSelectedIds(new Set())
       setLoading(false)
     }
   }
 
-  const handleMarkPaid = async (id: string) => {
+  const handleMarkPaid = async (id: string, title: string) => {
     setActionLoading(id)
-    await fetch(`/api/bills/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'PAID' }),
-    })
-    await fetchBills()
-    setActionLoading(null)
+    try {
+      const res = await fetch(`/api/bills/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'PAID' }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(`"${title}" marked as paid.`)
+      await fetchBills()
+    } catch {
+      toast.error('Could not update the bill.')
+    } finally {
+      setActionLoading(null)
+    }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this bill?')) return
-    setActionLoading(id)
-    await fetch(`/api/bills/${id}`, { method: 'DELETE' })
-    await fetchBills()
-    setActionLoading(null)
+  const requestDelete = (id: string, title: string) => setPendingDelete({ type: 'single', id, title })
+  const requestBulkDelete = () => {
+    if (selectedIds.size === 0) return
+    setPendingDelete({ type: 'bulk', count: selectedIds.size })
   }
 
-  // ── Filtering pipeline ──────────────────────────────────────────────
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setConfirmLoading(true)
+    try {
+      if (pendingDelete.type === 'single') {
+        setActionLoading(pendingDelete.id)
+        const res = await fetch(`/api/bills/${pendingDelete.id}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error()
+        toast.success(`"${pendingDelete.title}" deleted.`)
+      } else {
+        setBulkLoading(true)
+        const res = await fetch('/api/bills/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: Array.from(selectedIds), action: 'delete' }),
+        })
+        if (!res.ok) throw new Error()
+        toast.success(`${pendingDelete.count} bill(s) deleted.`)
+      }
+      await fetchBills()
+    } catch {
+      toast.error('Delete failed. Please try again.')
+    } finally {
+      setActionLoading(null)
+      setBulkLoading(false)
+      setConfirmLoading(false)
+      setPendingDelete(null)
+    }
+  }
+
   const now = new Date()
 
   let filtered = filter === 'ALL'
@@ -144,7 +189,6 @@ export default function BillList({ refresh }: { refresh: number }) {
     }
   })
 
-  // ── Bulk selection helpers ────────────────────────────────────────
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -168,28 +212,16 @@ export default function BillList({ refresh }: { refresh: number }) {
     if (selectedIds.size === 0) return
     setBulkLoading(true)
     try {
-      await fetch('/api/bills/bulk', {
+      const res = await fetch('/api/bills/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds), action: 'markPaid' }),
       })
+      if (!res.ok) throw new Error()
+      toast.success('Selected bills marked as paid.')
       await fetchBills()
-    } finally {
-      setBulkLoading(false)
-    }
-  }
-
-  const handleBulkDelete = async () => {
-    if (selectedIds.size === 0) return
-    if (!confirm(`Delete ${selectedIds.size} selected bill(s)? This cannot be undone.`)) return
-    setBulkLoading(true)
-    try {
-      await fetch('/api/bills/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: Array.from(selectedIds), action: 'delete' }),
-      })
-      await fetchBills()
+    } catch {
+      toast.error('Could not update selected bills.')
     } finally {
       setBulkLoading(false)
     }
@@ -203,6 +235,7 @@ export default function BillList({ refresh }: { refresh: number }) {
           <button
             key={f}
             onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
             style={{
               padding: '6px 14px', borderRadius: '8px',
               fontSize: '12px', fontWeight: '500', cursor: 'pointer',
@@ -224,6 +257,7 @@ export default function BillList({ refresh }: { refresh: number }) {
           <input
             type="text"
             placeholder="Search bills..."
+            aria-label="Search bills"
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{
@@ -237,7 +271,12 @@ export default function BillList({ refresh }: { refresh: number }) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <ArrowUpDown size={13} color="var(--text-muted)" />
-          <select value={sortBy} onChange={e => setSortBy(e.target.value as SortOption)} style={selectStyle}>
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as SortOption)}
+            style={selectStyle}
+            aria-label="Sort bills"
+          >
             <option value="dueDateAsc">Due date (soonest)</option>
             <option value="dueDateDesc">Due date (latest)</option>
             <option value="amountDesc">Amount (high to low)</option>
@@ -248,7 +287,12 @@ export default function BillList({ refresh }: { refresh: number }) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <CalendarDays size={13} color="var(--text-muted)" />
-          <select value={dateRange} onChange={e => setDateRange(e.target.value as DateRangeOption)} style={selectStyle}>
+          <select
+            value={dateRange}
+            onChange={e => setDateRange(e.target.value as DateRangeOption)}
+            style={selectStyle}
+            aria-label="Filter by date range"
+          >
             <option value="all">All time</option>
             <option value="thisMonth">This month</option>
             <option value="lastMonth">Last month</option>
@@ -259,11 +303,11 @@ export default function BillList({ refresh }: { refresh: number }) {
 
         {dateRange === 'custom' && (
           <>
-            <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-              style={{ ...selectStyle, colorScheme: 'inherit' }} />
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>to</span>
-            <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
-              style={{ ...selectStyle, colorScheme: 'inherit' }} />
+            <input type="date" aria-label="From date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+  style={{ ...selectStyle, colorScheme: theme }} />
+<span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>to</span>
+<input type="date" aria-label="To date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+  style={{ ...selectStyle, colorScheme: theme }} />
           </>
         )}
       </div>
@@ -271,7 +315,7 @@ export default function BillList({ refresh }: { refresh: number }) {
       {/* Export bar */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
         <button
-          onClick={() => exportToCSV(bills)}
+          onClick={() => { exportToCSV(bills); toast.success('CSV exported.') }}
           disabled={bills.length === 0}
           style={{
             display: 'flex', alignItems: 'center', gap: '6px',
@@ -286,7 +330,7 @@ export default function BillList({ refresh }: { refresh: number }) {
           Export CSV
         </button>
         <button
-          onClick={() => exportToPDF(bills)}
+          onClick={() => { exportToPDF(bills); toast.success('PDF exported.') }}
           disabled={bills.length === 0}
           style={{
             display: 'flex', alignItems: 'center', gap: '6px',
@@ -328,7 +372,7 @@ export default function BillList({ refresh }: { refresh: number }) {
               Mark Paid
             </button>
             <button
-              onClick={handleBulkDelete}
+              onClick={requestBulkDelete}
               disabled={bulkLoading}
               style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
@@ -368,7 +412,6 @@ export default function BillList({ refresh }: { refresh: number }) {
           </div>
         ) : (
           <>
-            {/* Select-all row */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: '12px',
               padding: '10px 20px',
@@ -379,6 +422,7 @@ export default function BillList({ refresh }: { refresh: number }) {
                 type="checkbox"
                 checked={allSelected}
                 onChange={toggleSelectAll}
+                aria-label={allSelected ? 'Deselect all bills' : 'Select all bills'}
                 style={{ accentColor: '#3b82f6', cursor: 'pointer' }}
               />
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -407,6 +451,7 @@ export default function BillList({ refresh }: { refresh: number }) {
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleSelect(bill.id)}
+                      aria-label={`Select ${bill.title}`}
                       style={{ accentColor: '#3b82f6', cursor: 'pointer' }}
                     />
                     <div style={{
@@ -451,9 +496,10 @@ export default function BillList({ refresh }: { refresh: number }) {
                     <div style={{ display: 'flex', gap: '4px' }}>
                       {effectiveStatus !== 'PAID' && (
                         <button
-                          onClick={() => handleMarkPaid(bill.id)}
+                          onClick={() => handleMarkPaid(bill.id, bill.title)}
                           disabled={isLoading}
                           title="Mark as paid"
+                          aria-label={`Mark ${bill.title} as paid`}
                           style={{
                             width: '30px', height: '30px', borderRadius: '6px', border: 'none',
                             background: 'transparent', cursor: 'pointer', display: 'flex',
@@ -467,6 +513,7 @@ export default function BillList({ refresh }: { refresh: number }) {
                         onClick={() => setEditingBill(bill)}
                         disabled={isLoading}
                         title="Edit"
+                        aria-label={`Edit ${bill.title}`}
                         style={{
                           width: '30px', height: '30px', borderRadius: '6px', border: 'none',
                           background: 'transparent', cursor: 'pointer', display: 'flex',
@@ -476,9 +523,10 @@ export default function BillList({ refresh }: { refresh: number }) {
                         <Pencil size={14} />
                       </button>
                       <button
-                        onClick={() => handleDelete(bill.id)}
+                        onClick={() => requestDelete(bill.id, bill.title)}
                         disabled={isLoading}
                         title="Delete"
+                        aria-label={`Delete ${bill.title}`}
                         style={{
                           width: '30px', height: '30px', borderRadius: '6px', border: 'none',
                           background: 'transparent', cursor: 'pointer', display: 'flex',
@@ -499,7 +547,21 @@ export default function BillList({ refresh }: { refresh: number }) {
       <EditBillModal
         bill={editingBill}
         onClose={() => setEditingBill(null)}
-        onSuccess={() => { setEditingBill(null); fetchBills() }}
+        onSuccess={() => { setEditingBill(null); toast.success('Bill updated.'); fetchBills() }}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={pendingDelete?.type === 'bulk' ? 'Delete selected bills?' : 'Delete this bill?'}
+        description={
+          pendingDelete?.type === 'bulk'
+            ? `This will permanently delete ${pendingDelete.count} bill(s). This cannot be undone.`
+            : `"${pendingDelete?.type === 'single' ? pendingDelete.title : ''}" will be permanently deleted. This cannot be undone.`
+        }
+        confirmLabel="Delete"
+        loading={confirmLoading}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
       />
     </div>
   )

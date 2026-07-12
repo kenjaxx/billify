@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-
+import { toast } from 'sonner'
+import { useTheme } from '@/lib/theme-context'
 type Category = { id: string; name: string; icon: string | null }
 
 type Bill = {
@@ -40,7 +41,7 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
 }) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const { theme } = useTheme()
   const [form, setForm] = useState({
     title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: '',
   })
@@ -56,13 +57,11 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
       isRecurring: bill.isRecurring,
       notes: bill.notes ?? '',
     })
-    setError('')
   }, [bill])
 
   const handleSubmit = async () => {
     if (!bill || !form.title || !form.amount || !form.categoryId || !form.dueDate) return
     setLoading(true)
-    setError('')
     try {
       const res = await fetch(`/api/bills/${bill.id}`, {
         method: 'PATCH',
@@ -80,7 +79,7 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
       if (!res.ok) throw new Error(data.error ?? 'Failed to update bill')
       onSuccess()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update bill.')
+      toast.error(err instanceof Error ? err.message : 'Failed to update bill.')
     } finally {
       setLoading(false)
     }
@@ -103,20 +102,10 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>Edit bill</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={18} />
           </button>
         </div>
-
-        {error && (
-          <div style={{
-            marginBottom: '14px', padding: '10px 14px', borderRadius: '8px',
-            fontSize: '12px', color: '#f87171',
-            background: 'rgba(248,113,113,0.1)', border: '0.5px solid rgba(248,113,113,0.2)',
-          }}>
-            {error}
-          </div>
-        )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
@@ -139,8 +128,8 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
           <div>
             <label style={labelStyle}>Due date</label>
             <input type="date" value={form.dueDate}
-              onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
-              style={{ ...inputStyle, colorScheme: 'inherit' }} />
+  onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
+  style={{ ...inputStyle, colorScheme: theme }} />
           </div>
           <div>
             <label style={labelStyle}>Notes (optional)</label>

@@ -36,13 +36,15 @@ export async function GET() {
 
     const monthly = Object.entries(monthlyData).map(([month, total]) => ({ month, total }))
 
+    // Group by categoryId (not name) so two categories that share a name
+    // never get merged into one slice of the report.
     const categoryData: Record<string, { name: string; icon: string | null; total: number }> = {}
     bills.forEach(bill => {
-      const cat = bill.category.name
-      if (!categoryData[cat]) {
-        categoryData[cat] = { name: cat, icon: bill.category.icon, total: 0 }
+      const key = bill.categoryId
+      if (!categoryData[key]) {
+        categoryData[key] = { name: bill.category.name, icon: bill.category.icon, total: 0 }
       }
-      categoryData[cat].total += bill.amount
+      categoryData[key].total += bill.amount
     })
 
     const byCategory = Object.values(categoryData).sort((a, b) => b.total - a.total)

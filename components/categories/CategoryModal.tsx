@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
+import { toast } from 'sonner'
 
 type Category = {
   id: string
@@ -36,13 +37,11 @@ export default function CategoryModal({ category, isOpen, onClose, onSuccess }: 
 }) {
   const [form, setForm] = useState({ name: '', icon: '', color: '#3b82f6' })
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   const isEdit = !!category
 
   useEffect(() => {
     if (!isOpen) return
-    setError('')
     if (category) {
       setForm({ name: category.name, icon: category.icon ?? '', color: category.color ?? '#3b82f6' })
     } else {
@@ -53,7 +52,6 @@ export default function CategoryModal({ category, isOpen, onClose, onSuccess }: 
   const handleSubmit = async () => {
     if (!form.name.trim()) return
     setLoading(true)
-    setError('')
     try {
       const url = isEdit ? `/api/categories/${category!.id}` : '/api/categories'
       const method = isEdit ? 'PATCH' : 'POST'
@@ -66,7 +64,7 @@ export default function CategoryModal({ category, isOpen, onClose, onSuccess }: 
       if (!res.ok) throw new Error(data.error ?? 'Failed to save category')
       onSuccess()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save category.')
+      toast.error(err instanceof Error ? err.message : 'Failed to save category.')
     } finally {
       setLoading(false)
     }
@@ -90,20 +88,10 @@ export default function CategoryModal({ category, isOpen, onClose, onSuccess }: 
           <h2 style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>
             {isEdit ? 'Edit category' : 'New category'}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={18} />
           </button>
         </div>
-
-        {error && (
-          <div style={{
-            marginBottom: '14px', padding: '10px 14px', borderRadius: '8px',
-            fontSize: '12px', color: '#f87171',
-            background: 'rgba(248,113,113,0.1)', border: '0.5px solid rgba(248,113,113,0.2)',
-          }}>
-            {error}
-          </div>
-        )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>

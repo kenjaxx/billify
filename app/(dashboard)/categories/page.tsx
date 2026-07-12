@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2, Tags } from 'lucide-react'
+import { toast } from 'sonner'
 import CategoryModal from '@/components/categories/CategoryModal'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 type Category = {
   id: string
@@ -18,6 +20,8 @@ export default function CategoriesPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Category | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
 
   const fetchCategories = async () => {
     setLoading(true)
@@ -26,6 +30,7 @@ export default function CategoriesPage() {
       setCategories(await res.json())
     } catch (err) {
       console.error(err)
+      toast.error('Could not load categories.')
     } finally {
       setLoading(false)
     }
@@ -35,23 +40,24 @@ export default function CategoriesPage() {
 
   const handleAdd = () => { setEditingCategory(null); setModalOpen(true) }
   const handleEdit = (cat: Category) => { setEditingCategory(cat); setModalOpen(true) }
+  const requestDelete = (cat: Category) => setPendingDelete(cat)
 
-  const handleDelete = async (cat: Category) => {
-    const { bills, budgets } = cat._count
-    const warning = (bills > 0 || budgets > 0)
-      ? `This category has ${bills} bill(s) and ${budgets} budget(s) attached. Deleting it will also delete all of them. This cannot be undone.`
-      : `Delete "${cat.name}"? This cannot be undone.`
-
-    if (!confirm(warning)) return
-
-    setDeletingId(cat.id)
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setConfirmLoading(true)
+    setDeletingId(pendingDelete.id)
     try {
-      await fetch(`/api/categories/${cat.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/categories/${pendingDelete.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      toast.success(`"${pendingDelete.name}" deleted.`)
       await fetchCategories()
     } catch (err) {
       console.error(err)
+      toast.error('Could not delete category.')
     } finally {
       setDeletingId(null)
+      setConfirmLoading(false)
+      setPendingDelete(null)
     }
   }
 
@@ -133,6 +139,7 @@ export default function CategoriesPage() {
                   onClick={() => handleEdit(cat)}
                   disabled={deletingId === cat.id}
                   title="Edit"
+                  aria-label={`Edit ${cat.name}`}
                   style={{
                     width: '30px', height: '30px', borderRadius: '6px', border: 'none',
                     background: 'transparent', cursor: 'pointer', display: 'flex',
@@ -142,9 +149,10 @@ export default function CategoriesPage() {
                   <Pencil size={14} />
                 </button>
                 <button
-                  onClick={() => handleDelete(cat)}
+                  onClick={() => requestDelete(cat)}
                   disabled={deletingId === cat.id}
                   title="Delete"
+                  aria-label={`Delete ${cat.name}`}
                   style={{
                     width: '30px', height: '30px', borderRadius: '6px', border: 'none',
                     background: 'transparent', cursor: 'pointer', display: 'flex',
@@ -163,7 +171,23 @@ export default function CategoriesPage() {
         category={editingCategory}
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSuccess={() => { setModalOpen(false); fetchCategories() }}
+        onSuccess={() => { setModalOpen(false); toast.success(editingCategory ? 'Category updated.' : 'Category added.'); fetchCategories() }}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete this category?"
+        description={
+          pendingDelete
+            ? (pendingDelete._count.bills > 0 || pendingDelete._count.budgets > 0
+                ? `"${pendingDelete.name}" has ${pendingDelete._count.bills} bill(s) and ${pendingDelete._count.budgets} budget(s) attached. Deleting it will also delete all of them. This cannot be undone.`
+                : `"${pendingDelete.name}" will be permanently deleted. This cannot be undone.`)
+            : ''
+        }
+        confirmLabel="Delete"
+        loading={confirmLoading}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
       />
     </div>
   )

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/lib/theme-context'
 import './globals.css'
 
@@ -14,6 +15,19 @@ export const viewport: Viewport = {
   userScalable: false,
 }
 
+// Runs before React hydrates, synchronously setting data-theme
+// so there's no dark->light (or light->dark) flash on load.
+const themeInitScript = `
+(function() {
+  try {
+    var stored = localStorage.getItem('billify-theme');
+    if (stored === 'light' || stored === 'dark') {
+      document.documentElement.setAttribute('data-theme', stored);
+    }
+  } catch (e) {}
+})();
+`
+
 export default function RootLayout({
   children,
 }: {
@@ -21,10 +35,25 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>
         <ThemeProvider>
           {children}
         </ThemeProvider>
+        <Toaster
+          position="top-right"
+          theme="dark"
+          toastOptions={{
+            style: {
+              background: 'var(--bg-card)',
+              border: '0.5px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+            },
+          }}
+        />
       </body>
     </html>
   )

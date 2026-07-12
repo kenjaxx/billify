@@ -6,10 +6,33 @@ const devLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') console.log(...args)
 }
 
+// In-memory rate limiter: 5 requests per user per minute.
+// Resets on cold start — good enough to stop accidental spam/runaway
+// loops from burning through the Gemini quota. For a hard guarantee
+// across serverless instances, back this with Redis/Upstash instead.
+const RATE_LIMIT = 5
+const WINDOW_MS = 60_000
+const requestLog = new Map<string, number[]>()
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now()
+  const timestamps = (requestLog.get(userId) ?? []).filter(t => now - t < WINDOW_MS)
+  timestamps.push(now)
+  requestLog.set(userId, timestamps)
+  return timestamps.length > RATE_LIMIT
+}
+
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    if (isRateLimited(user.id)) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a minute before trying again.' },
+        { status: 429 }
+      )
+    }
 
     const { text } = await req.json()
     if (!text) return NextResponse.json({ error: 'No text provided' }, { status: 400 })

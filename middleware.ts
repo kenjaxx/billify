@@ -25,11 +25,14 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // getUser() hits Supabase Auth server — not just the local JWT
   const { data: { user }, error } = await supabase.auth.getUser()
 
   const protectedRoutes = ['/dashboard', '/bills', '/budgets', '/reports', '/settings', '/categories']
   const authRoutes = ['/login', '/register']
+  // Public routes that must NEVER be redirected away, even without a session —
+  // the reset-password page needs to load first so it can exchange the
+  // recovery code for a session itself.
+  const publicRoutes = ['/forgot-password', '/reset-password']
 
   const isProtected = protectedRoutes.some(route =>
     request.nextUrl.pathname.startsWith(route)
@@ -37,11 +40,16 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = authRoutes.some(route =>
     request.nextUrl.pathname === route
   )
+  const isPublicRoute = publicRoutes.some(route =>
+    request.nextUrl.pathname.startsWith(route)
+  )
 
-  // No valid user (deleted, expired, or never logged in)
+  if (isPublicRoute) {
+    return supabaseResponse
+  }
+
   if (!user || error) {
     if (isProtected) {
-      // Clear the stale session cookies before redirecting
       const redirectResponse = NextResponse.redirect(new URL('/login', request.url))
       request.cookies.getAll().forEach(({ name }) => {
         if (name.includes('sb-') || name.includes('supabase')) {
