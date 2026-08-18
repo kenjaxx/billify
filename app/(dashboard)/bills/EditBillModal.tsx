@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { useTheme } from '@/lib/theme-context'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
+import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 import ReceiptUpload from '@/components/bills/ReceiptUpload'
 
 type Category = { id: string; name: string; icon: string | null }
@@ -55,6 +56,8 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
     receiptUrl: null as string | null, receiptName: null as string | null,
   })
 
+  useLockBodyScroll(!!bill)
+
   useEffect(() => {
     if (!bill) return
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null))
@@ -102,18 +105,8 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
   if (!bill) return null
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 50,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.6)', padding: '24px',
-    }}>
-      <div style={{
-        background: 'var(--bg-card)',
-        border: '0.5px solid var(--border-input)',
-        borderRadius: '16px', padding: '28px',
-        width: '100%', maxWidth: '440px',
-        maxHeight: '90vh', overflowY: 'auto',
-      }}>
+    <div className="modal-overlay">
+      <div className="modal-card" style={{ maxWidth: '440px', padding: '28px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>Edit bill</h2>
           <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
@@ -162,8 +155,7 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input type="checkbox" id="edit-recurring" checked={form.isRecurring}
-              onChange={e => setForm(p => ({ ...p, isRecurring: e.target.checked }))}
-              style={{ accentColor: '#3b82f6' }} />
+              onChange={e => setForm(p => ({ ...p, isRecurring: e.target.checked }))} />
             <label htmlFor="edit-recurring" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
               Recurring monthly bill
             </label>

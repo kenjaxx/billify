@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
+import { IconActionButton } from '@/components/ui/icon-action-button'
 
 export default function ReceiptViewButton({ billId }: { billId: string }) {
   const [loading, setLoading] = useState(false)
@@ -23,18 +24,12 @@ export default function ReceiptViewButton({ billId }: { billId: string }) {
   }
 
   return (
-    <button
+    <IconActionButton
+      icon={Paperclip}
+      tone="info"
+      label="View receipt"
       onClick={handleView}
       disabled={loading}
-      title="View receipt"
-      aria-label="View receipt"
-      style={{
-        width: '30px', height: '30px', borderRadius: '6px', border: 'none',
-        background: 'transparent', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', color: '#60a5fa',
-      }}
-    >
-      <Paperclip size={14} />
-    </button>
+    />
   )
 }

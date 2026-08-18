@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { useTheme } from '@/lib/theme-context'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
+import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 import ReceiptUpload from '@/components/bills/ReceiptUpload'
 import ReceiptItemsReview from '@/components/bills/ReceiptItemsReview'
 
@@ -57,6 +58,8 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
     title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: '',
     receiptUrl: null as string | null, receiptName: null as string | null,
   })
+
+  useLockBodyScroll(isOpen)
 
   useEffect(() => {
     if (!isOpen) return
@@ -189,19 +192,8 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
 
   if (multiItems && multiReceipt) {
     return (
-      <div style={{
-        position: 'fixed', inset: 0, zIndex: 50,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'rgba(0,0,0,0.6)', padding: '24px',
-      }}>
-        <div style={{
-          background: 'var(--bg-card)',
-          border: '0.5px solid var(--border-input)',
-          borderRadius: '16px', padding: '28px',
-          width: '100%', maxWidth: '460px',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-        }}>
+      <div className="modal-overlay">
+        <div className="modal-card" style={{ maxWidth: '460px', padding: '28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>Multiple bills detected</h2>
             <button onClick={handleClose} aria-label="Close" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
@@ -222,19 +214,8 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 50,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.6)', padding: '24px',
-    }}>
-      <div style={{
-        background: 'var(--bg-card)',
-        border: '0.5px solid var(--border-input)',
-        borderRadius: '16px', padding: '28px',
-        width: '100%', maxWidth: '440px',
-        maxHeight: '90vh',
-        overflowY: 'auto',
-      }}>
+    <div className="modal-overlay">
+      <div className="modal-card" style={{ maxWidth: '440px', padding: '28px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>Add new bill</h2>
           <button onClick={handleClose} aria-label="Close" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
@@ -382,8 +363,7 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <input type="checkbox" id="recurring" checked={form.isRecurring}
-                onChange={e => setForm(p => ({ ...p, isRecurring: e.target.checked }))}
-                style={{ accentColor: '#3b82f6' }} />
+                onChange={e => setForm(p => ({ ...p, isRecurring: e.target.checked }))} />
               <label htmlFor="recurring" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                 Recurring monthly bill
               </label>

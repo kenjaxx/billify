@@ -153,6 +153,140 @@ a { text-decoration: none; }
 }
 
 /* ── Animations ── */
-@keyframes spin    { to { transform: rotate(360deg); } }
-@keyframes dropIn  { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes pulse   { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+@keyframes spin      { to { transform: rotate(360deg); } }
+@keyframes dropIn    { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse     { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ────────────────────────────────────────────────────────────────
+   Icon action buttons — tinted, transparent at rest, used for row
+   actions (mark paid / edit / delete / view receipt) across the app.
+   ──────────────────────────────────────────────────────────────── */
+.icon-action-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--icon-color, var(--text-secondary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.icon-action-btn:hover:not(:disabled) {
+  background: var(--icon-hover-bg, var(--bg-hover));
+  transform: translateY(-1px);
+}
+.icon-action-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.icon-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Checkboxes — consistent rounded style instead of browser default ── */
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Shared modal system. `touch-action: pan-y` is the important part —
+   it stops the overlay (and the modal riding on top of it) from being
+   draggable left/right on mobile, which is what was happening before.
+   overflow-x: hidden on the card is a second safety net against any
+   child forcing the card wider than the viewport.
+   ──────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 24px;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  animation: overlayIn 0.15s ease;
+}
+.modal-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border-input);
+  border-radius: 16px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  animation: dropIn 0.18s ease;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.35);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Bills list rows — wrap instead of overflow on narrow screens, so
+   status/amount/action buttons never get clipped off the right edge.
+   ──────────────────────────────────────────────────────────────── */
+.bill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 10px;
+  padding: 14px 20px;
+}
+.bill-row-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 220px;
+}
+.bill-row-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+@media (max-width: 600px) {
+  .bill-row-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Bill calendar — on small screens, swap full text badges (which
+   overflow day cells) for small colored dots. Tapping the day still
+   opens the full detail panel below.
+   ──────────────────────────────────────────────────────────────── */
+.cal-day-cell {
+  overflow: hidden;
+}
+.cal-badges-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.cal-badges-dots {
+  display: none;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+@media (max-width: 640px) {
+  .cal-badges-text { display: none; }
+  .cal-badges-dots { display: flex; }
+  .cal-day-cell {
+    min-height: 40px !important;
+    padding: 3px !important;
+  }
+}

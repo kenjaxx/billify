@@ -53,7 +53,7 @@ export default function BillCalendar() {
       padding: '20px',
     }}>
       {/* Calendar header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', rowGap: '8px' }}>
         <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)' }}>
           Bill Calendar
         </h2>
@@ -116,6 +116,7 @@ export default function BillCalendar() {
             return (
               <div
                 key={day.toISOString()}
+                className="cal-day-cell"
                 onClick={() => dayBills.length > 0 && setSelectedDay(isSelected ? null : day)}
                 style={{
                   minHeight: '52px',
@@ -145,7 +146,9 @@ export default function BillCalendar() {
                 }}>
                   {format(day, 'd')}
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+
+                {/* Desktop: short text badges */}
+                <div className="cal-badges-text">
                   {dayBills.slice(0, 2).map(bill => (
                     <div key={bill.id} style={{
                       fontSize: '9px',
@@ -166,6 +169,16 @@ export default function BillCalendar() {
                       +{dayBills.length - 2} more
                     </div>
                   )}
+                </div>
+
+                {/* Mobile: compact dots — tap the day to see details below */}
+                <div className="cal-badges-dots">
+                  {dayBills.slice(0, 4).map(bill => (
+                    <span key={bill.id} style={{
+                      width: '5px', height: '5px', borderRadius: '50%',
+                      background: statusColor[bill.status], flexShrink: 0,
+                    }} />
+                  ))}
                 </div>
               </div>
             )

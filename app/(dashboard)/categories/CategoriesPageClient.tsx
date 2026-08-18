@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import CategoryModal from '@/components/categories/CategoryModal'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { Button } from '@/components/ui/button'
+import { IconActionButton } from '@/components/ui/icon-action-button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { fetcher } from '@/lib/swr-fetcher'
 
@@ -95,7 +96,7 @@ export default function CategoriesPageClient({ initialCategories }: { initialCat
           categories.map((cat, i) => (
             <div key={cat.id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '14px 20px',
+              padding: '14px 20px', flexWrap: 'wrap', gap: '10px',
               borderBottom: i < categories.length - 1 ? '0.5px solid var(--border)' : 'none',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -122,25 +123,20 @@ export default function CategoriesPageClient({ initialCategories }: { initialCat
                     border: '0.5px solid var(--border-strong)',
                   }} />
                 )}
-                <Button
-                  variant="ghost" size="icon-sm"
+                <IconActionButton
+                  icon={Pencil}
+                  tone="default"
+                  label={`Edit ${cat.name}`}
                   onClick={() => handleEdit(cat)}
                   disabled={deletingId === cat.id}
-                  title="Edit"
-                  aria-label={`Edit ${cat.name}`}
-                >
-                  <Pencil size={14} />
-                </Button>
-                <Button
-                  variant="ghost" size="icon-sm"
+                />
+                <IconActionButton
+                  icon={Trash2}
+                  tone="danger"
+                  label={`Delete ${cat.name}`}
                   onClick={() => requestDelete(cat)}
                   disabled={deletingId === cat.id}
-                  title="Delete"
-                  aria-label={`Delete ${cat.name}`}
-                  style={{ color: '#f87171' }}
-                >
-                  <Trash2 size={14} />
-                </Button>
+                />
               </div>
             </div>
           ))

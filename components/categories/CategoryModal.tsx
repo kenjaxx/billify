@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ColorSwatchPicker } from '@/components/ui/color-swatch-picker'
+import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 
 type Category = {
   id: string
@@ -42,6 +43,8 @@ export default function CategoryModal({ category, isOpen, onClose, onSuccess }: 
 
   const isEdit = !!category
 
+  useLockBodyScroll(isOpen)
+
   useEffect(() => {
     if (!isOpen) return
     if (category) {
@@ -75,17 +78,8 @@ export default function CategoryModal({ category, isOpen, onClose, onSuccess }: 
   if (!isOpen) return null
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 50,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.6)', padding: '24px',
-    }}>
-      <div style={{
-        background: 'var(--bg-card)',
-        border: '0.5px solid var(--border-input)',
-        borderRadius: '16px', padding: '28px',
-        width: '100%', maxWidth: '400px',
-      }}>
+    <div className="modal-overlay">
+      <div className="modal-card" style={{ maxWidth: '400px', padding: '28px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>
             {isEdit ? 'Edit category' : 'New category'}

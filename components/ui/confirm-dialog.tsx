@@ -1,6 +1,7 @@
 'use client'
 
 import { AlertTriangle } from 'lucide-react'
+import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 
 export default function ConfirmDialog({
   open,
@@ -21,6 +22,8 @@ export default function ConfirmDialog({
   onConfirm: () => void
   onCancel: () => void
 }) {
+  useLockBodyScroll(open)
+
   if (!open) return null
 
   return (
@@ -28,19 +31,10 @@ export default function ConfirmDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
-      style={{
-        position: 'fixed', inset: 0, zIndex: 300,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'rgba(0,0,0,0.6)', padding: '24px',
-      }}
+      className="modal-overlay"
+      style={{ zIndex: 300 }}
     >
-      <div style={{
-        background: 'var(--bg-card)',
-        border: '0.5px solid var(--border)',
-        borderRadius: '16px', padding: '28px',
-        width: '100%', maxWidth: '360px',
-        boxShadow: '0 24px 48px rgba(0,0,0,0.4)',
-      }}>
+      <div className="modal-card" style={{ maxWidth: '360px', padding: '28px', boxShadow: '0 24px 48px rgba(0,0,0,0.4)' }}>
         <div style={{
           width: '44px', height: '44px', borderRadius: '10px',
           background: danger ? 'rgba(248,113,113,0.1)' : 'rgba(59,130,246,0.1)',

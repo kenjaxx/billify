@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sparkles, AlertTriangle, CheckCircle2, Info, RefreshCw } from 'lucide-react'
+import { Sparkles, AlertTriangle, CheckCircle2, Info, RefreshCw, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 
 type Insight = { type: 'warning' | 'success' | 'info'; message: string }
 
@@ -14,10 +16,56 @@ const iconFor = {
   info:    { Icon: Info,          color: '#60a5fa', bg: 'rgba(59,130,246,0.1)' },
 }
 
+function InsightsModal({ insights, onClose }: { insights: Insight[]; onClose: () => void }) {
+  useLockBodyScroll(true)
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-card"
+        onClick={e => e.stopPropagation()}
+        style={{ maxWidth: '440px', padding: '24px' }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Sparkles size={16} color="#a78bfa" />
+            <h2 style={{ fontSize: '15px', fontWeight: '500', color: 'var(--text-primary)' }}>AI Insights</h2>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {insights.map((insight, i) => {
+            const { Icon, color, bg } = iconFor[insight.type]
+            return (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'flex-start', gap: '10px',
+                padding: '12px 14px', borderRadius: '10px', background: bg,
+              }}>
+                <Icon size={15} color={color} style={{ marginTop: '1px', flexShrink: 0 }} />
+                <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: '1.55' }}>
+                  {insight.message}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function InsightsWidget() {
   const [insights, setInsights] = useState<Insight[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
 
   const loadFromCache = (): { insights: Insight[]; generatedAt: string } | null => {
     try {
@@ -60,6 +108,9 @@ export default function InsightsWidget() {
 
   useEffect(() => { fetchInsights() }, [])
 
+  const count = insights?.length ?? 0
+  const hasWarning = insights?.some(i => i.type === 'warning') ?? false
+
   return (
     <div style={{
       background: 'var(--bg-card)',
@@ -67,7 +118,7 @@ export default function InsightsWidget() {
       borderRadius: '12px',
       padding: '20px',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Sparkles size={15} color="#a78bfa" />
           <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)' }}>
@@ -91,7 +142,7 @@ export default function InsightsWidget() {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
           {[0, 1, 2].map(i => (
             <div key={i} style={{
               height: '40px', borderRadius: '8px',
@@ -102,34 +153,29 @@ export default function InsightsWidget() {
           ))}
         </div>
       ) : error ? (
-        <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{error}</p>
-      ) : !insights || insights.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0', gap: '6px' }}>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '16px' }}>{error}</p>
+      ) : count === 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0 4px', gap: '6px' }}>
           <Sparkles size={24} color="var(--text-faint)" />
           <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Not enough data yet for insights</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {insights.map((insight, i) => {
-            const { Icon, color, bg } = iconFor[insight.type]
-            return (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'flex-start', gap: '10px',
-                padding: '10px 12px', borderRadius: '8px', background: bg,
-              }}>
-                <Icon size={14} color={color} style={{ marginTop: '1px', flexShrink: 0 }} />
-                <p style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: '1.5' }}>
-                  {insight.message}
-                </p>
-              </div>
-            )
-          })}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 0 4px', gap: '10px' }}>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>
+            {hasWarning
+              ? `${count} thing${count !== 1 ? 's' : ''} worth a look, including something that needs attention.`
+              : `${count} thing${count !== 1 ? 's' : ''} worth a look about your bills and spending.`}
+          </p>
+          <Button onClick={() => setModalOpen(true)}>
+            <Sparkles size={13} />
+            View Insights
+          </Button>
         </div>
       )}
 
-      <style>{`
-        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
-      `}</style>
+      {modalOpen && insights && (
+        <InsightsModal insights={insights} onClose={() => setModalOpen(false)} />
+      )}
     </div>
   )
 }

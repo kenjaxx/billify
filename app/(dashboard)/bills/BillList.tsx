@@ -14,6 +14,7 @@ import { getEffectiveStatus } from '@/lib/bill-status'
 import { fetcher } from '@/lib/swr-fetcher'
 import { useDebouncedValue } from '@/lib/use-debounce'
 import { Button } from '@/components/ui/button'
+import { IconActionButton } from '@/components/ui/icon-action-button'
 import { EmptyState } from '@/components/ui/empty-state'
 import EditBillModal from './EditBillModal'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
@@ -402,6 +403,7 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: 'rgba(59,130,246,0.08)', border: '0.5px solid rgba(59,130,246,0.25)',
           borderRadius: '10px', padding: '10px 16px', marginBottom: '12px',
+          flexWrap: 'wrap', gap: '10px',
         }}>
           <span style={{ fontSize: '12px', color: '#60a5fa', fontWeight: '500' }}>
             {selectedIds.size} bill{selectedIds.size !== 1 ? 's' : ''} selected
@@ -471,7 +473,6 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
                 checked={allSelected}
                 onChange={toggleSelectAll}
                 aria-label={allSelected ? 'Deselect all bills' : 'Select all bills'}
-                style={{ accentColor: '#3b82f6', cursor: 'pointer' }}
               />
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                 {allSelected ? 'Deselect all' : 'Select all'} ({filtered.length})
@@ -487,30 +488,32 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
               return (
                 <div
                   key={bill.id}
+                  className="bill-row"
                   style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '14px 20px',
                     borderBottom: i < filtered.length - 1 ? '0.5px solid var(--border)' : 'none',
                     background: isSelected ? 'rgba(59,130,246,0.05)' : 'transparent',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div className="bill-row-left">
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleSelect(bill.id)}
                       aria-label={`Select ${bill.title}`}
-                      style={{ accentColor: '#3b82f6', cursor: 'pointer' }}
                     />
                     <div style={{
                       width: '36px', height: '36px', borderRadius: '8px',
                       background: 'var(--icon-bg)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px',
+                      flexShrink: 0,
                     }}>
                       {bill.category.icon ?? '📄'}
                     </div>
-                    <div>
-                      <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{
+                        fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
                         {bill.title}
                         {bill.isRecurring && (
                           <span style={{
@@ -528,7 +531,7 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div className="bill-row-right">
                     <span style={{
                       display: 'flex', alignItems: 'center', gap: '4px',
                       fontSize: '11px', fontWeight: '500',
@@ -543,36 +546,29 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
                     </span>
                     <div style={{ display: 'flex', gap: '2px' }}>
                       {effectiveStatus !== 'PAID' && (
-                        <Button
-                          variant="ghost" size="icon-sm"
+                        <IconActionButton
+                          icon={CheckCheck}
+                          tone="success"
+                          label="Mark as paid"
                           onClick={() => handleMarkPaid(bill.id, bill.title)}
                           disabled={isLoading}
-                          title="Mark as paid"
-                          aria-label={`Mark ${bill.title} as paid`}
-                        >
-                          <CheckCheck size={14} />
-                        </Button>
+                        />
                       )}
                       {bill.receiptUrl && <ReceiptViewButton billId={bill.id} />}
-                      <Button
-                        variant="ghost" size="icon-sm"
+                      <IconActionButton
+                        icon={Pencil}
+                        tone="default"
+                        label="Edit"
                         onClick={() => setEditingBill(bill)}
                         disabled={isLoading}
-                        title="Edit"
-                        aria-label={`Edit ${bill.title}`}
-                      >
-                        <Pencil size={14} />
-                      </Button>
-                      <Button
-                        variant="ghost" size="icon-sm"
+                      />
+                      <IconActionButton
+                        icon={Trash2}
+                        tone="danger"
+                        label="Delete"
                         onClick={() => requestDelete(bill.id, bill.title)}
                         disabled={isLoading}
-                        title="Delete"
-                        aria-label={`Delete ${bill.title}`}
-                        style={{ color: '#f87171' }}
-                      >
-                        <Trash2 size={14} />
-                      </Button>
+                      />
                     </div>
                   </div>
                 </div>

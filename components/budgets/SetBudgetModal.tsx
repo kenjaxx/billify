@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 
 type Category = { id: string; name: string; icon: string | null }
 
@@ -24,6 +25,8 @@ export default function SetBudgetModal({ isOpen, onClose, onSuccess, month, year
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ categoryId: '', amount: '' })
 
+  useLockBodyScroll(isOpen)
+
   useEffect(() => {
     if (isOpen) fetch('/api/categories').then(r => r.json()).then(setCategories)
   }, [isOpen])
@@ -44,17 +47,8 @@ export default function SetBudgetModal({ isOpen, onClose, onSuccess, month, year
   if (!isOpen) return null
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 50,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.6)', padding: '24px',
-    }}>
-      <div style={{
-        background: 'var(--bg-card)',
-        border: '0.5px solid var(--border-input)',
-        borderRadius: '16px', padding: '28px',
-        width: '100%', maxWidth: '400px',
-      }}>
+    <div className="modal-overlay">
+      <div className="modal-card" style={{ maxWidth: '400px', padding: '28px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>Set Budget</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
