@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   FileText, CheckCircle, AlertCircle, Clock, Trash2, CheckCheck,
-  Download, Pencil, Search, ArrowUpDown, CalendarDays,
+  Download, Pencil, Search, ArrowUpDown, CalendarDays, Loader2,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -52,6 +52,14 @@ type PendingDelete =
   | { type: 'bulk'; count: number }
   | null
 
+const dateRangeLabels: Record<DateRangeOption, string> = {
+  all: '',
+  thisMonth: 'This month',
+  lastMonth: 'Last month',
+  thisYear: 'This year',
+  custom: 'Custom range',
+}
+
 export default function BillList({ refresh }: { refresh: number }) {
   const [bills, setBills] = useState<Bill[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,7 +78,9 @@ export default function BillList({ refresh }: { refresh: number }) {
 
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
-  
+
+  const [exportingPdf, setExportingPdf] = useState(false)
+
   const { theme } = useTheme()
 
   useEffect(() => { fetchBills() }, [refresh])
@@ -190,6 +200,44 @@ export default function BillList({ refresh }: { refresh: number }) {
       default: return 0
     }
   })
+
+  // Human-readable description of the filters currently applied, shown in
+  // the exported PDF header so the report is clearly labeled as a subset
+  // (or the full list) of the user's bills.
+  const buildFilterSummary = (): string | undefined => {
+    const parts: string[] = []
+    if (filter !== 'ALL') parts.push(statusConfig[filter].label)
+    if (dateRange === 'custom') {
+      if (customFrom || customTo) {
+        parts.push(`${customFrom || '…'} to ${customTo || '…'}`)
+      }
+    } else if (dateRangeLabels[dateRange]) {
+      parts.push(dateRangeLabels[dateRange])
+    }
+    if (search.trim()) parts.push(`"${search.trim()}"`)
+    return parts.length > 0 ? parts.join(' · ') : undefined
+  }
+
+  const handleExportCSV = () => {
+    try {
+      exportToCSV(filtered)
+      toast.success('CSV exported.')
+    } catch {
+      toast.error('Could not export CSV.')
+    }
+  }
+
+  const handleExportPDF = async () => {
+    setExportingPdf(true)
+    try {
+      await exportToPDF(filtered, 'bills', { filterSummary: buildFilterSummary() })
+      toast.success('PDF exported.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not export PDF.')
+    } finally {
+      setExportingPdf(false)
+    }
+  }
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -317,34 +365,38 @@ export default function BillList({ refresh }: { refresh: number }) {
       {/* Export bar */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
         <button
-          onClick={() => { exportToCSV(bills); toast.success('CSV exported.') }}
-          disabled={bills.length === 0}
+          onClick={handleExportCSV}
+          disabled={filtered.length === 0}
+          title={filtered.length === 0 ? 'No bills to export in the current view' : 'Export the currently filtered bills as CSV'}
           style={{
             display: 'flex', alignItems: 'center', gap: '6px',
             padding: '7px 14px', borderRadius: '8px',
-            fontSize: '12px', fontWeight: '500', cursor: bills.length === 0 ? 'not-allowed' : 'pointer',
+            fontSize: '12px', fontWeight: '500', cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
             border: '0.5px solid var(--border-strong)',
             background: 'transparent', color: 'var(--text-secondary)',
-            opacity: bills.length === 0 ? 0.5 : 1,
+            opacity: filtered.length === 0 ? 0.5 : 1,
           }}
         >
           <Download size={13} />
           Export CSV
         </button>
         <button
-          onClick={() => { exportToPDF(bills); toast.success('PDF exported.') }}
-          disabled={bills.length === 0}
+          onClick={handleExportPDF}
+          disabled={filtered.length === 0 || exportingPdf}
+          title={filtered.length === 0 ? 'No bills to export in the current view' : 'Export the currently filtered bills as PDF'}
           style={{
             display: 'flex', alignItems: 'center', gap: '6px',
             padding: '7px 14px', borderRadius: '8px',
-            fontSize: '12px', fontWeight: '500', cursor: bills.length === 0 ? 'not-allowed' : 'pointer',
+            fontSize: '12px', fontWeight: '500', cursor: (filtered.length === 0 || exportingPdf) ? 'not-allowed' : 'pointer',
             border: '0.5px solid rgba(59,130,246,0.3)',
             background: 'rgba(59,130,246,0.08)', color: '#60a5fa',
-            opacity: bills.length === 0 ? 0.5 : 1,
+            opacity: filtered.length === 0 ? 0.5 : 1,
           }}
         >
-          <FileText size={13} />
-          Export PDF
+          {exportingPdf
+            ? <><Loader2 size={13} className="animate-spin" /> Generating...</>
+            : <><FileText size={13} /> Export PDF</>
+          }
         </button>
       </div>
 
