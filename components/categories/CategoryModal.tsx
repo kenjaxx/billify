@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { ColorSwatchPicker } from '@/components/ui/color-swatch-picker'
 
 type Category = {
   id: string
@@ -99,34 +101,22 @@ export default function CategoryModal({ category, isOpen, onClose, onSuccess }: 
             <input type="text" placeholder="e.g. Subscriptions" value={form.name}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))} style={inputStyle} />
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Icon (emoji)</label>
-              <input type="text" placeholder="📦" value={form.icon} maxLength={4}
-                onChange={e => setForm(p => ({ ...p, icon: e.target.value }))} style={inputStyle} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Color</label>
-              <input type="color" value={form.color}
-                onChange={e => setForm(p => ({ ...p, color: e.target.value }))}
-                style={{ ...inputStyle, padding: '4px', height: '38px', cursor: 'pointer' }} />
-            </div>
+          <div>
+            <label style={labelStyle}>Icon (emoji)</label>
+            <input type="text" placeholder="📦" value={form.icon} maxLength={4}
+              onChange={e => setForm(p => ({ ...p, icon: e.target.value }))} style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Color</label>
+            <ColorSwatchPicker value={form.color} onChange={color => setForm(p => ({ ...p, color }))} />
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-          <button onClick={onClose} style={{
-            flex: 1, background: 'transparent',
-            border: '0.5px solid var(--border-strong)',
-            color: 'var(--text-secondary)', borderRadius: '8px',
-            padding: '10px', fontSize: '13px', cursor: 'pointer',
-          }}>Cancel</button>
-          <button onClick={handleSubmit} disabled={loading || !form.name.trim()} style={{
-            flex: 1, background: (loading || !form.name.trim()) ? 'rgba(59,130,246,0.4)' : '#3b82f6',
-            border: 'none', color: '#fff', borderRadius: '8px',
-            padding: '10px', fontSize: '13px', fontWeight: '500',
-            cursor: (loading || !form.name.trim()) ? 'not-allowed' : 'pointer',
-          }}>{loading ? 'Saving...' : isEdit ? 'Save changes' : 'Add category'}</button>
+          <Button variant="outline" onClick={onClose} style={{ flex: 1 }}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={loading || !form.name.trim()} style={{ flex: 1 }}>
+            {loading ? 'Saving...' : isEdit ? 'Save changes' : 'Add category'}
+          </Button>
         </div>
       </div>
     </div>

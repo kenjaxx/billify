@@ -3,6 +3,10 @@ import { TrendingUp, Wallet, FileText } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import ReportChartsLoader from './ReportChartsLoader'
+import { TrendBadge } from '@/components/ui/trend-badge'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export default async function ReportsPage() {
   const supabase = await createSupabaseServer()
@@ -48,10 +52,16 @@ export default async function ReportsPage() {
   const totalSpent = bills.reduce((sum, b) => sum + b.amount, 0)
   const topCategory = byCategory[0] ?? null
 
+  // "Total spent" trend: current month vs the month before it — both
+  // already present as the last two entries of the 6-month window above.
+  const currentMonthTotal = monthly[monthly.length - 1]?.total ?? 0
+  const prevMonthTotal = monthly[monthly.length - 2]?.total ?? 0
+  const monthTrend = prevMonthTotal > 0 ? ((currentMonthTotal - prevMonthTotal) / prevMonthTotal) * 100 : null
+
   const summaryCards = [
-    { label: 'Total spent (6 months)', value: `₱${totalSpent.toLocaleString()}`, icon: Wallet, color: '#60a5fa', bg: 'rgba(59,130,246,0.1)' },
-    { label: 'Top category', value: topCategory ? `${topCategory.icon} ${topCategory.name}` : '—', icon: TrendingUp, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
-    { label: 'Avg per month', value: `₱${Math.round(totalSpent / 6).toLocaleString()}`, icon: FileText, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+    { label: 'Total spent (6 months)', value: `₱${totalSpent.toLocaleString()}`, icon: Wallet, color: '#60a5fa', bg: 'rgba(59,130,246,0.1)', trend: <TrendBadge percent={monthTrend} /> },
+    { label: 'Top category', value: topCategory ? `${topCategory.icon} ${topCategory.name}` : '—', icon: TrendingUp, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)', trend: null },
+    { label: 'Avg per month', value: `₱${Math.round(totalSpent / 6).toLocaleString()}`, icon: FileText, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', trend: null },
   ]
 
   return (
@@ -64,7 +74,7 @@ export default async function ReportsPage() {
       </div>
 
       <div className="reports-summary-grid" style={{ marginBottom: '20px' }}>
-        {summaryCards.map(({ label, value, icon: Icon, color, bg }) => (
+        {summaryCards.map(({ label, value, icon: Icon, color, bg, trend }) => (
           <div key={label} style={{
             background: 'var(--bg-card)',
             border: '0.5px solid var(--border)',
@@ -79,7 +89,10 @@ export default async function ReportsPage() {
             </div>
             <div>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px' }}>{label}</p>
-              <p style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>{value}</p>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                <p style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>{value}</p>
+                {trend}
+              </div>
             </div>
           </div>
         ))}

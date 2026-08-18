@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTheme } from '@/lib/theme-context'
 import { supabase } from '@/lib/supabase'
+import { Button } from '@/components/ui/button'
 import ReceiptUpload from '@/components/bills/ReceiptUpload'
 
 type Category = { id: string; name: string; icon: string | null }
@@ -170,23 +171,12 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
         </div>
 
         <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-          <button onClick={onClose} style={{
-            flex: 1, background: 'transparent',
-            border: '0.5px solid var(--border-strong)',
-            color: 'var(--text-secondary)', borderRadius: '8px',
-            padding: '10px', fontSize: '13px', cursor: 'pointer',
-          }}>Cancel</button>
-          <button
+          <Button variant="outline" onClick={onClose} style={{ flex: 1 }}>Cancel</Button>
+          <Button
             onClick={handleSubmit}
             disabled={loading || !form.title || !form.amount || !form.categoryId || !form.dueDate}
-            style={{
-              flex: 1,
-              background: (loading || !form.title || !form.amount || !form.categoryId || !form.dueDate) ? 'rgba(59,130,246,0.4)' : '#3b82f6',
-              border: 'none', color: '#fff', borderRadius: '8px',
-              padding: '10px', fontSize: '13px', fontWeight: '500',
-              cursor: (loading || !form.title || !form.amount || !form.categoryId || !form.dueDate) ? 'not-allowed' : 'pointer',
-            }}
-          >{loading ? 'Saving...' : 'Save changes'}</button>
+            style={{ flex: 1 }}
+          >{loading ? 'Saving...' : 'Save changes'}</Button>
         </div>
       </div>
     </div>

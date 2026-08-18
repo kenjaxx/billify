@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import CategoriesPageClient from './CategoriesPageClient'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function CategoriesPage() {
   const supabase = await createSupabaseServer()
   const { data: { user } } = await supabase.auth.getUser()

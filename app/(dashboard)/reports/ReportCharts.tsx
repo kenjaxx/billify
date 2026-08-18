@@ -2,6 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts'
 import { FileText } from 'lucide-react'
+import { EmptyState } from '@/components/ui/empty-state'
 
 const COLORS = ['#3b82f6', '#fbbf24', '#34d399', '#a78bfa', '#f87171', '#06b6d4']
 
@@ -46,10 +47,12 @@ export default function ReportCharts({ data }: { data: ReportData }) {
           Spending by category
         </h2>
         {data.byCategory.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px', gap: '8px' }}>
-            <FileText size={32} color="var(--text-faint)" />
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No data yet</p>
-          </div>
+          <EmptyState
+            icon={FileText}
+            title="No data yet"
+            description="Once you add bills, your spending breakdown by category shows up here."
+            action={{ label: 'Add a bill', href: '/bills?add=1' }}
+          />
         ) : (
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>

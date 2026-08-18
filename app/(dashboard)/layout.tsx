@@ -1,6 +1,7 @@
 import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
 import TopBar from '@/components/layout/TopBar'
+import MobileFAB from '@/components/layout/MobileFAB'
 
 export default function DashboardLayout({
   children,
@@ -18,6 +19,7 @@ export default function DashboardLayout({
       <main className="dashboard-main">
         {children}
       </main>
+      <MobileFAB />
       <BottomNav />
     </div>
   )

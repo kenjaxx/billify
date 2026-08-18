@@ -2,7 +2,10 @@
 
 import { useState } from 'react'
 import useSWR from 'swr'
+import { useRouter } from 'next/navigation'
 import { Plus, Wallet, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import SetBudgetModal from '@/components/budgets/SetBudgetModal'
 import { fetcher } from '@/lib/swr-fetcher'
 
@@ -25,14 +28,12 @@ export default function BudgetsPageClient({
   initialMonth: number
   initialYear: number
 }) {
+  const router = useRouter()
   const [viewDate, setViewDate] = useState({ month: initialMonth, year: initialYear })
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   const isInitialMonth = viewDate.month === initialMonth && viewDate.year === initialYear
 
-  // Bills use a single, static SWR key ('/api/bills') — the exact same key
-  // BillList uses on the Bills page, so navigating between Bills and
-  // Budgets reuses the same cached response instead of refetching.
   const { data: bills = [] } = useSWR<Bill[]>('/api/bills', fetcher, {
     fallbackData: initialBills,
   })
@@ -76,14 +77,9 @@ export default function BudgetsPageClient({
             Spending limits per category
           </p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} style={{
-          display: 'flex', alignItems: 'center', gap: '6px',
-          background: '#3b82f6', color: '#fff', border: 'none',
-          padding: '9px 16px', borderRadius: '8px',
-          fontSize: '13px', fontWeight: '500', cursor: 'pointer',
-        }}>
+        <Button onClick={() => setIsModalOpen(true)}>
           <Plus size={15} /> Set Budget
-        </button>
+        </Button>
       </div>
 
       {/* Month navigator */}
@@ -133,11 +129,12 @@ export default function BudgetsPageClient({
             }} />
           </div>
         ) : budgets.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px', gap: '8px' }}>
-            <Wallet size={36} color="var(--text-faint)" />
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No budgets set for {monthLabel} {viewDate.year}</p>
-            <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Set a budget limit per category</p>
-          </div>
+          <EmptyState
+            icon={Wallet}
+            title={`No budgets set for ${monthLabel} ${viewDate.year}`}
+            description="Set a spending limit per category to track how close you are to going over."
+            action={{ label: 'Set a budget', onClick: () => setIsModalOpen(true) }}
+          />
         ) : (
           budgets.map((budget, i) => {
             const spent = getSpent(budget.category.id)
@@ -185,7 +182,7 @@ export default function BudgetsPageClient({
       <SetBudgetModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={() => { mutateBudgets(); setIsModalOpen(false) }}
+        onSuccess={() => { mutateBudgets(); setIsModalOpen(false); router.refresh() }}
         month={viewDate.month}
         year={viewDate.year}
       />

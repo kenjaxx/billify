@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
+import { useRouter } from 'next/navigation'
 import {
   FileText, CheckCircle, AlertCircle, Clock, Trash2, CheckCheck,
   Download, Pencil, Search, ArrowUpDown, CalendarDays, Loader2,
@@ -12,6 +13,8 @@ import { exportToCSV, exportToPDF } from '@/lib/export'
 import { getEffectiveStatus } from '@/lib/bill-status'
 import { fetcher } from '@/lib/swr-fetcher'
 import { useDebouncedValue } from '@/lib/use-debounce'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import EditBillModal from './EditBillModal'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useTheme } from '@/lib/theme-context'
@@ -65,6 +68,7 @@ const dateRangeLabels: Record<DateRangeOption, string> = {
 }
 
 export default function BillList({ refresh, initialBills }: { refresh: number; initialBills: Bill[] }) {
+  const router = useRouter()
   const { data: bills = [], isLoading: loading, mutate, error } = useSWR<Bill[]>('/api/bills', fetcher, {
     fallbackData: initialBills,
   })
@@ -90,9 +94,6 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
 
   const { theme } = useTheme()
 
-  // Data already arrives server-rendered via fallbackData, so skip the
-  // first run of this effect — only revalidate when `refresh` actually
-  // increments (i.e. after Add Bill succeeds).
   const isFirstMount = useRef(true)
   useEffect(() => {
     if (isFirstMount.current) {
@@ -117,6 +118,7 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
       if (!res.ok) throw new Error()
       toast.success(`"${title}" marked as paid.`)
       await mutate()
+      router.refresh()
     } catch {
       toast.error('Could not update the bill.')
     } finally {
@@ -151,6 +153,7 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
         setSelectedIds(new Set())
       }
       await mutate()
+      router.refresh()
     } catch {
       toast.error('Delete failed. Please try again.')
     } finally {
@@ -207,9 +210,6 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
     }
   })
 
-  // Human-readable description of the filters currently applied, shown in
-  // the exported PDF header so the report is clearly labeled as a subset
-  // (or the full list) of the user's bills.
   const buildFilterSummary = (): string | undefined => {
     const parts: string[] = []
     if (filter !== 'ALL') parts.push(statusConfig[filter].label)
@@ -277,6 +277,7 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
       toast.success('Selected bills marked as paid.')
       setSelectedIds(new Set())
       await mutate()
+      router.refresh()
     } catch {
       toast.error('Could not update selected bills.')
     } finally {
@@ -371,40 +372,28 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
 
       {/* Export bar */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleExportCSV}
           disabled={filtered.length === 0}
           title={filtered.length === 0 ? 'No bills to export in the current view' : 'Export the currently filtered bills as CSV'}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            padding: '7px 14px', borderRadius: '8px',
-            fontSize: '12px', fontWeight: '500', cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
-            border: '0.5px solid var(--border-strong)',
-            background: 'transparent', color: 'var(--text-secondary)',
-            opacity: filtered.length === 0 ? 0.5 : 1,
-          }}
         >
           <Download size={13} />
           Export CSV
-        </button>
-        <button
+        </Button>
+        <Button
+          size="sm"
           onClick={handleExportPDF}
           disabled={filtered.length === 0 || exportingPdf}
           title={filtered.length === 0 ? 'No bills to export in the current view' : 'Export the currently filtered bills as PDF'}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            padding: '7px 14px', borderRadius: '8px',
-            fontSize: '12px', fontWeight: '500', cursor: (filtered.length === 0 || exportingPdf) ? 'not-allowed' : 'pointer',
-            border: '0.5px solid rgba(59,130,246,0.3)',
-            background: 'rgba(59,130,246,0.08)', color: '#60a5fa',
-            opacity: filtered.length === 0 ? 0.5 : 1,
-          }}
+          style={{ background: 'rgba(59,130,246,0.12)', color: '#60a5fa' }}
         >
           {exportingPdf
             ? <><Loader2 size={13} className="animate-spin" /> Generating...</>
             : <><FileText size={13} /> Export PDF</>
           }
-        </button>
+        </Button>
       </div>
 
       {/* Bulk action bar */}
@@ -418,35 +407,24 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
             {selectedIds.size} bill{selectedIds.size !== 1 ? 's' : ''} selected
           </span>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button
+            <Button
+              size="sm"
               onClick={handleBulkMarkPaid}
               disabled={bulkLoading}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '6px 12px', borderRadius: '7px',
-                fontSize: '12px', fontWeight: '500',
-                border: 'none', background: '#34d399', color: '#0a0c10',
-                cursor: bulkLoading ? 'not-allowed' : 'pointer',
-              }}
+              style={{ background: '#34d399', color: '#0a0c10' }}
             >
               <CheckCheck size={13} />
               Mark Paid
-            </button>
-            <button
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
               onClick={requestBulkDelete}
               disabled={bulkLoading}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '6px 12px', borderRadius: '7px',
-                fontSize: '12px', fontWeight: '500',
-                border: '0.5px solid rgba(248,113,113,0.3)',
-                background: 'rgba(248,113,113,0.12)', color: '#f87171',
-                cursor: bulkLoading ? 'not-allowed' : 'pointer',
-              }}
             >
               <Trash2 size={13} />
               Delete
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -466,11 +444,20 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
             }} />
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px', gap: '8px' }}>
-            <FileText size={36} color="var(--text-faint)" />
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No bills found</p>
-            <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Try adjusting your filters or search</p>
-          </div>
+          bills.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No bills yet"
+              description="Add your first bill manually, describe it in plain text, or upload a receipt and let AI fill it in."
+              action={{ label: 'Add your first bill', onClick: () => router.push('/bills?add=1') }}
+            />
+          ) : (
+            <EmptyState
+              icon={Search}
+              title="No bills found"
+              description="Try adjusting your filters, date range, or search term."
+            />
+          )
         ) : (
           <>
             <div style={{
@@ -554,50 +541,39 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
                     <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', minWidth: '80px', textAlign: 'right' }}>
                       ₱{bill.amount.toLocaleString()}
                     </span>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-  {effectiveStatus !== 'PAID' && (
-    <button
-      onClick={() => handleMarkPaid(bill.id, bill.title)}
-      disabled={isLoading}
-      title="Mark as paid"
-      aria-label={`Mark ${bill.title} as paid`}
-      style={{
-        width: '30px', height: '30px', borderRadius: '6px', border: 'none',
-        background: 'transparent', cursor: 'pointer', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
-      }}
-    >
-      <CheckCheck size={14} />
-    </button>
-  )}
-  {bill.receiptUrl && <ReceiptViewButton billId={bill.id} />}
-  <button
-    onClick={() => setEditingBill(bill)}
-    disabled={isLoading}
-    title="Edit"
-    aria-label={`Edit ${bill.title}`}
-    style={{
-      width: '30px', height: '30px', borderRadius: '6px', border: 'none',
-      background: 'transparent', cursor: 'pointer', display: 'flex',
-      alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
-    }}
-  >
-    <Pencil size={14} />
-  </button>
-  <button
-    onClick={() => requestDelete(bill.id, bill.title)}
-    disabled={isLoading}
-    title="Delete"
-    aria-label={`Delete ${bill.title}`}
-    style={{
-      width: '30px', height: '30px', borderRadius: '6px', border: 'none',
-      background: 'transparent', cursor: 'pointer', display: 'flex',
-      alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
-    }}
-  >
-    <Trash2 size={14} />
-  </button>
-</div>
+                    <div style={{ display: 'flex', gap: '2px' }}>
+                      {effectiveStatus !== 'PAID' && (
+                        <Button
+                          variant="ghost" size="icon-sm"
+                          onClick={() => handleMarkPaid(bill.id, bill.title)}
+                          disabled={isLoading}
+                          title="Mark as paid"
+                          aria-label={`Mark ${bill.title} as paid`}
+                        >
+                          <CheckCheck size={14} />
+                        </Button>
+                      )}
+                      {bill.receiptUrl && <ReceiptViewButton billId={bill.id} />}
+                      <Button
+                        variant="ghost" size="icon-sm"
+                        onClick={() => setEditingBill(bill)}
+                        disabled={isLoading}
+                        title="Edit"
+                        aria-label={`Edit ${bill.title}`}
+                      >
+                        <Pencil size={14} />
+                      </Button>
+                      <Button
+                        variant="ghost" size="icon-sm"
+                        onClick={() => requestDelete(bill.id, bill.title)}
+                        disabled={isLoading}
+                        title="Delete"
+                        aria-label={`Delete ${bill.title}`}
+                        style={{ color: '#f87171' }}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )
@@ -609,7 +585,7 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
       <EditBillModal
         bill={editingBill}
         onClose={() => setEditingBill(null)}
-        onSuccess={() => { setEditingBill(null); toast.success('Bill updated.'); mutate() }}
+        onSuccess={() => { setEditingBill(null); toast.success('Bill updated.'); mutate(); router.refresh() }}
       />
 
       <ConfirmDialog

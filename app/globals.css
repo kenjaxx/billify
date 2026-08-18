@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Maps the shadcn Button component's utility classes (bg-primary,
+   border-border, bg-muted, etc.) onto this app's existing theme tokens,
+   so Button renders consistent with the rest of the UI in both themes
+   instead of falling back to unstyled defaults. */
+@theme {
+  --color-primary: var(--accent);
+  --color-primary-foreground: #ffffff;
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --color-border: var(--border);
+  --color-input: var(--bg-input);
+  --color-ring: var(--accent);
+  --color-muted: var(--bg-hover);
+  --color-muted-foreground: var(--text-secondary);
+  --color-secondary: var(--bg-tertiary);
+  --color-secondary-foreground: var(--text-primary);
+  --color-destructive: #f87171;
+  --color-destructive-foreground: #ffffff;
+  --radius-md: 10px;
+}
+
 /* ── Dark theme (default) ── */
 :root,
 [data-theme="dark"] {
@@ -62,8 +83,6 @@ html, body {
   overflow-x: hidden;
 }
 
-/* Smooth theme transitions — scoped to surfaces that actually change color,
-   not every element on the page, to keep re-renders and theme toggles cheap */
 body, .dashboard-main {
   transition: background-color 0.2s ease;
 }

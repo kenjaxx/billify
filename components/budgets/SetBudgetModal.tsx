@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 type Category = { id: string; name: string; icon: string | null }
 
@@ -77,17 +78,10 @@ export default function SetBudgetModal({ isOpen, onClose, onSuccess, month, year
         </div>
 
         <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-          <button onClick={onClose} style={{
-            flex: 1, background: 'transparent',
-            border: '0.5px solid var(--border-strong)',
-            color: 'var(--text-secondary)', borderRadius: '8px',
-            padding: '10px', fontSize: '13px', cursor: 'pointer',
-          }}>Cancel</button>
-          <button onClick={handleSubmit} disabled={loading} style={{
-            flex: 1, background: loading ? 'rgba(59,130,246,0.5)' : '#3b82f6',
-            border: 'none', color: '#fff', borderRadius: '8px',
-            padding: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
-          }}>{loading ? 'Saving...' : 'Save Budget'}</button>
+          <Button variant="outline" onClick={onClose} style={{ flex: 1 }}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={loading} style={{ flex: 1 }}>
+            {loading ? 'Saving...' : 'Save Budget'}
+          </Button>
         </div>
       </div>
     </div>

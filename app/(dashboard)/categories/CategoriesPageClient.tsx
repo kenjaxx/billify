@@ -2,10 +2,13 @@
 
 import { useState } from 'react'
 import useSWR from 'swr'
+import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Trash2, Tags } from 'lucide-react'
 import { toast } from 'sonner'
 import CategoryModal from '@/components/categories/CategoryModal'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { fetcher } from '@/lib/swr-fetcher'
 
 type Category = {
@@ -17,6 +20,7 @@ type Category = {
 }
 
 export default function CategoriesPageClient({ initialCategories }: { initialCategories: Category[] }) {
+  const router = useRouter()
   const { data: categories = [], isLoading: loading, mutate } = useSWR<Category[]>('/api/categories', fetcher, {
     fallbackData: initialCategories,
   })
@@ -40,6 +44,7 @@ export default function CategoriesPageClient({ initialCategories }: { initialCat
       if (!res.ok) throw new Error()
       toast.success(`"${pendingDelete.name}" deleted.`)
       await mutate()
+      router.refresh()
     } catch (err) {
       console.error(err)
       toast.error('Could not delete category.')
@@ -59,18 +64,10 @@ export default function CategoriesPageClient({ initialCategories }: { initialCat
             Organize your bills and budgets by category
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            background: '#3b82f6', color: '#fff', border: 'none',
-            padding: '9px 16px', borderRadius: '8px',
-            fontSize: '13px', fontWeight: '500', cursor: 'pointer',
-          }}
-        >
+        <Button onClick={handleAdd}>
           <Plus size={15} />
           Add Category
-        </button>
+        </Button>
       </div>
 
       <div style={{
@@ -88,11 +85,12 @@ export default function CategoriesPageClient({ initialCategories }: { initialCat
             }} />
           </div>
         ) : categories.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px', gap: '8px' }}>
-            <Tags size={36} color="var(--text-faint)" />
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No categories yet</p>
-            <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Add a category to start organizing bills</p>
-          </div>
+          <EmptyState
+            icon={Tags}
+            title="No categories yet"
+            description="Categories let you organize bills and set per-category budgets."
+            action={{ label: 'Add your first category', onClick: handleAdd }}
+          />
         ) : (
           categories.map((cat, i) => (
             <div key={cat.id} style={{
@@ -124,32 +122,25 @@ export default function CategoriesPageClient({ initialCategories }: { initialCat
                     border: '0.5px solid var(--border-strong)',
                   }} />
                 )}
-                <button
+                <Button
+                  variant="ghost" size="icon-sm"
                   onClick={() => handleEdit(cat)}
                   disabled={deletingId === cat.id}
                   title="Edit"
                   aria-label={`Edit ${cat.name}`}
-                  style={{
-                    width: '30px', height: '30px', borderRadius: '6px', border: 'none',
-                    background: 'transparent', cursor: 'pointer', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
-                  }}
                 >
                   <Pencil size={14} />
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost" size="icon-sm"
                   onClick={() => requestDelete(cat)}
                   disabled={deletingId === cat.id}
                   title="Delete"
                   aria-label={`Delete ${cat.name}`}
-                  style={{
-                    width: '30px', height: '30px', borderRadius: '6px', border: 'none',
-                    background: 'transparent', cursor: 'pointer', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
-                  }}
+                  style={{ color: '#f87171' }}
                 >
                   <Trash2 size={14} />
-                </button>
+                </Button>
               </div>
             </div>
           ))
@@ -160,7 +151,7 @@ export default function CategoriesPageClient({ initialCategories }: { initialCat
         category={editingCategory}
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSuccess={() => { setModalOpen(false); toast.success(editingCategory ? 'Category updated.' : 'Category added.'); mutate() }}
+        onSuccess={() => { setModalOpen(false); toast.success(editingCategory ? 'Category updated.' : 'Category added.'); mutate(); router.refresh() }}
       />
 
       <ConfirmDialog

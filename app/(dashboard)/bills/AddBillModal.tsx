@@ -6,6 +6,7 @@ import { X, Sparkles, PenLine } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTheme } from '@/lib/theme-context'
 import { supabase } from '@/lib/supabase'
+import { Button } from '@/components/ui/button'
 import ReceiptUpload from '@/components/bills/ReceiptUpload'
 import ReceiptItemsReview from '@/components/bills/ReceiptItemsReview'
 
@@ -285,22 +286,16 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
                 }}
                 style={{ ...inputStyle, resize: 'none', lineHeight: '1.6' }}
               />
-              <button
+              <Button
                 onClick={handleAIParse}
                 disabled={aiLoading || !aiText.trim()}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                  width: '100%', padding: '10px', borderRadius: '8px', border: 'none',
-                  background: aiLoading || !aiText.trim() ? 'rgba(59,130,246,0.4)' : '#3b82f6',
-                  color: '#fff', fontSize: '13px', fontWeight: '500',
-                  cursor: aiLoading || !aiText.trim() ? 'not-allowed' : 'pointer',
-                }}
+                style={{ width: '100%' }}
               >
                 {aiLoading
                   ? <><div style={{ width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Parsing...</>
                   : <><Sparkles size={13} /> Parse with AI</>
                 }
-              </button>
+              </Button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '4px 0' }}>
                 <div style={{ flex: 1, height: '0.5px', background: 'var(--border)' }} />
@@ -398,23 +393,12 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
 
         {mode === 'manual' && (
           <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-            <button onClick={handleClose} style={{
-              flex: 1, background: 'transparent',
-              border: '0.5px solid var(--border-strong)',
-              color: 'var(--text-secondary)', borderRadius: '8px',
-              padding: '10px', fontSize: '13px', cursor: 'pointer',
-            }}>Cancel</button>
-            <button
+            <Button variant="outline" onClick={handleClose} style={{ flex: 1 }}>Cancel</Button>
+            <Button
               onClick={handleSubmit}
               disabled={loading || !form.title || !form.amount || !form.categoryId || !form.dueDate}
-              style={{
-                flex: 1,
-                background: (loading || !form.title || !form.amount || !form.categoryId || !form.dueDate) ? 'rgba(59,130,246,0.4)' : '#3b82f6',
-                border: 'none', color: '#fff', borderRadius: '8px',
-                padding: '10px', fontSize: '13px', fontWeight: '500',
-                cursor: (loading || !form.title || !form.amount || !form.categoryId || !form.dueDate) ? 'not-allowed' : 'pointer',
-              }}
-            >{loading ? 'Saving...' : 'Add Bill'}</button>
+              style={{ flex: 1 }}
+            >{loading ? 'Saving...' : 'Add Bill'}</Button>
           </div>
         )}
       </div>

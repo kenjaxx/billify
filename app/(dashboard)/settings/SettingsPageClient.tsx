@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
+import { useRouter } from 'next/navigation'
 import { User, Sun, Moon, Save, Tags } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTheme } from '@/lib/theme-context'
 import { supabase } from '@/lib/supabase'
+import { Button } from '@/components/ui/button'
 import { fetcher } from '@/lib/swr-fetcher'
 
 type SettingsData = {
@@ -19,6 +21,7 @@ type SettingsData = {
 
 export default function SettingsPageClient({ initialData }: { initialData: SettingsData }) {
   const { theme, toggleTheme } = useTheme()
+  const router = useRouter()
   const { data, isLoading: loading, mutate } = useSWR<SettingsData>('/api/settings', fetcher, {
     fallbackData: initialData,
   })
@@ -41,6 +44,7 @@ export default function SettingsPageClient({ initialData }: { initialData: Setti
       if (authError) throw new Error(authError.message)
 
       await mutate()
+      router.refresh()
       toast.success('Settings saved.')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save.')
@@ -116,20 +120,10 @@ export default function SettingsPageClient({ initialData }: { initialData: Setti
           />
         </div>
 
-        <button
-          onClick={handleSave}
-          disabled={saving || !name.trim()}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            background: saving || !name.trim() ? 'rgba(59,130,246,0.5)' : '#3b82f6',
-            color: '#fff', border: 'none', borderRadius: '8px',
-            padding: '10px 18px', fontSize: '13px', fontWeight: '500',
-            cursor: saving || !name.trim() ? 'not-allowed' : 'pointer',
-          }}
-        >
+        <Button onClick={handleSave} disabled={saving || !name.trim()}>
           <Save size={14} />
           {saving ? 'Saving...' : 'Save changes'}
-        </button>
+        </Button>
       </div>
 
       <div style={{
@@ -147,19 +141,10 @@ export default function SettingsPageClient({ initialData }: { initialData: Setti
               Currently using {theme === 'dark' ? 'dark' : 'light'} mode
             </p>
           </div>
-          <button
-            onClick={toggleTheme}
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              background: 'var(--bg-tertiary)', border: '0.5px solid var(--border)',
-              borderRadius: '8px', padding: '8px 14px',
-              fontSize: '12px', color: 'var(--text-secondary)', cursor: 'pointer',
-            }}
-          >
+          <Button variant="outline" size="sm" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
             {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
             Switch to {theme === 'dark' ? 'light' : 'dark'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -207,15 +192,12 @@ export default function SettingsPageClient({ initialData }: { initialData: Setti
               Add, edit, or remove bill categories
             </p>
           </div>
-          <Link href="/categories" style={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            background: 'var(--bg-tertiary)', border: '0.5px solid var(--border)',
-            borderRadius: '8px', padding: '8px 14px',
-            fontSize: '12px', color: 'var(--text-secondary)', textDecoration: 'none',
-          }}>
-            <Tags size={14} />
-            Open
-          </Link>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/categories">
+              <Tags size={14} />
+              Open
+            </Link>
+          </Button>
         </div>
       </div>
     </div>
