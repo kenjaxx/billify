@@ -2,21 +2,10 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/get-user'
 import { prisma } from '@/lib/prisma'
+import { isRateLimited } from '@/lib/rate-limit'
 
 const devLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') console.log(...args)
-}
-
-const RATE_LIMIT = 5
-const WINDOW_MS = 60_000
-const requestLog = new Map<string, number[]>()
-
-function isRateLimited(userId: string): boolean {
-  const now = Date.now()
-  const timestamps = (requestLog.get(userId) ?? []).filter(t => now - t < WINDOW_MS)
-  timestamps.push(now)
-  requestLog.set(userId, timestamps)
-  return timestamps.length > RATE_LIMIT
 }
 
 export async function POST(req: Request) {
@@ -24,7 +13,7 @@ export async function POST(req: Request) {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    if (isRateLimited(user.id)) {
+    if (await isRateLimited(user.id, 5)) {
       return NextResponse.json(
         { error: 'Too many requests. Please wait a minute before trying again.' },
         { status: 429 }

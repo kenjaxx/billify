@@ -74,6 +74,14 @@ model Budget {
   @@index([categoryId])
 }
 
+model AiRequestLog {
+  id        String   @id @default(uuid())
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
 enum BillStatus {
   UNPAID
   PAID

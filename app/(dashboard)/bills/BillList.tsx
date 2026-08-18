@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import useSWR from 'swr'
 import {
   FileText, CheckCircle, AlertCircle, Clock, Trash2, CheckCheck,
   Download, Pencil, Search, ArrowUpDown, CalendarDays, Loader2,
@@ -9,10 +10,13 @@ import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { exportToCSV, exportToPDF } from '@/lib/export'
 import { getEffectiveStatus } from '@/lib/bill-status'
+import { fetcher } from '@/lib/swr-fetcher'
+import { useDebouncedValue } from '@/lib/use-debounce'
 import EditBillModal from './EditBillModal'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useTheme } from '@/lib/theme-context'
 import ReceiptViewButton from '@/components/bills/ReceiptViewButton'
+
 type Bill = {
   id: string
   title: string
@@ -60,14 +64,17 @@ const dateRangeLabels: Record<DateRangeOption, string> = {
   custom: 'Custom range',
 }
 
-export default function BillList({ refresh }: { refresh: number }) {
-  const [bills, setBills] = useState<Bill[]>([])
-  const [loading, setLoading] = useState(true)
+export default function BillList({ refresh, initialBills }: { refresh: number; initialBills: Bill[] }) {
+  const { data: bills = [], isLoading: loading, mutate, error } = useSWR<Bill[]>('/api/bills', fetcher, {
+    fallbackData: initialBills,
+  })
+
   const [filter, setFilter] = useState<typeof filters[number]>('ALL')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [editingBill, setEditingBill] = useState<Bill | null>(null)
 
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search, 300)
   const [sortBy, setSortBy] = useState<SortOption>('dueDateAsc')
   const [dateRange, setDateRange] = useState<DateRangeOption>('all')
   const [customFrom, setCustomFrom] = useState('')
@@ -83,23 +90,21 @@ export default function BillList({ refresh }: { refresh: number }) {
 
   const { theme } = useTheme()
 
-  useEffect(() => { fetchBills() }, [refresh])
-
-  const fetchBills = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/bills')
-      if (!res.ok) throw new Error('Failed to fetch')
-      setBills(await res.json())
-    } catch (err) {
-      console.error(err)
-      setBills([])
-      toast.error('Could not load bills.')
-    } finally {
-      setSelectedIds(new Set())
-      setLoading(false)
+  // Data already arrives server-rendered via fallbackData, so skip the
+  // first run of this effect — only revalidate when `refresh` actually
+  // increments (i.e. after Add Bill succeeds).
+  const isFirstMount = useRef(true)
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      return
     }
-  }
+    mutate()
+  }, [refresh, mutate])
+
+  useEffect(() => {
+    if (error) toast.error('Could not load bills.')
+  }, [error])
 
   const handleMarkPaid = async (id: string, title: string) => {
     setActionLoading(id)
@@ -111,7 +116,7 @@ export default function BillList({ refresh }: { refresh: number }) {
       })
       if (!res.ok) throw new Error()
       toast.success(`"${title}" marked as paid.`)
-      await fetchBills()
+      await mutate()
     } catch {
       toast.error('Could not update the bill.')
     } finally {
@@ -143,8 +148,9 @@ export default function BillList({ refresh }: { refresh: number }) {
         })
         if (!res.ok) throw new Error()
         toast.success(`${pendingDelete.count} bill(s) deleted.`)
+        setSelectedIds(new Set())
       }
-      await fetchBills()
+      await mutate()
     } catch {
       toast.error('Delete failed. Please try again.')
     } finally {
@@ -181,8 +187,8 @@ export default function BillList({ refresh }: { refresh: number }) {
     return true
   })
 
-  if (search.trim()) {
-    const q = search.trim().toLowerCase()
+  if (debouncedSearch.trim()) {
+    const q = debouncedSearch.trim().toLowerCase()
     filtered = filtered.filter(b =>
       b.title.toLowerCase().includes(q) ||
       (b.notes ?? '').toLowerCase().includes(q) ||
@@ -269,7 +275,8 @@ export default function BillList({ refresh }: { refresh: number }) {
       })
       if (!res.ok) throw new Error()
       toast.success('Selected bills marked as paid.')
-      await fetchBills()
+      setSelectedIds(new Set())
+      await mutate()
     } catch {
       toast.error('Could not update selected bills.')
     } finally {
@@ -602,7 +609,7 @@ export default function BillList({ refresh }: { refresh: number }) {
       <EditBillModal
         bill={editingBill}
         onClose={() => setEditingBill(null)}
-        onSuccess={() => { setEditingBill(null); toast.success('Bill updated.'); fetchBills() }}
+        onSuccess={() => { setEditingBill(null); toast.success('Bill updated.'); mutate() }}
       />
 
       <ConfirmDialog

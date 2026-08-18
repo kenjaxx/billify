@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/lib/theme-context'
+import { SWRProvider } from '@/lib/swr-provider'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -39,9 +40,11 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <SWRProvider>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
+        </SWRProvider>
         <Toaster
           position="top-right"
           theme="dark"
