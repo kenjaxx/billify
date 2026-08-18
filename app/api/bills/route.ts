@@ -1,3 +1,4 @@
+// app/api/bills/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
@@ -30,9 +31,8 @@ export async function POST(req: Request) {
     if (!validation.valid) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
-    const { title, amount, dueDate, categoryId, isRecurring, notes } = validation.data
+    const { title, amount, dueDate, categoryId, isRecurring, notes, receiptUrl, receiptName } = validation.data
 
-    // Make sure the category actually belongs to this user
     const category = await prisma.category.findFirst({
       where: { id: categoryId, userId: user.id },
     })
@@ -47,6 +47,8 @@ export async function POST(req: Request) {
         dueDate: new Date(dueDate),
         isRecurring,
         notes,
+        receiptUrl,
+        receiptName,
         status: 'UNPAID',
         userId: user.id,
         categoryId,

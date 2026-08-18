@@ -1,3 +1,4 @@
+// lib/validation.ts
 export function isValidAmount(amount: unknown): amount is number {
   return typeof amount === 'number' && Number.isFinite(amount) && amount > 0
 }
@@ -19,6 +20,8 @@ export type BillInput = {
   categoryId: string
   isRecurring: boolean
   notes: string | null
+  receiptUrl: string | null
+  receiptName: string | null
 }
 
 export function validateBillInput(
@@ -32,6 +35,9 @@ export function validateBillInput(
   if (body.notes !== undefined && body.notes !== null && typeof body.notes !== 'string') {
     return { valid: false, error: 'Notes must be text.' }
   }
+  if (body.receiptUrl !== undefined && body.receiptUrl !== null && typeof body.receiptUrl !== 'string') {
+    return { valid: false, error: 'Invalid receipt.' }
+  }
 
   return {
     valid: true,
@@ -42,6 +48,8 @@ export function validateBillInput(
       categoryId: body.categoryId,
       isRecurring: Boolean(body.isRecurring),
       notes: body.notes ? String(body.notes).trim() : null,
+      receiptUrl: body.receiptUrl ? String(body.receiptUrl) : null,
+      receiptName: body.receiptName ? String(body.receiptName) : null,
     },
   }
 }
@@ -69,4 +77,12 @@ export function validateCategoryInput(
       color: body.color ? String(body.color) : null,
     },
   }
+}
+
+export function validateReminderDays(value: unknown): { valid: true; days: number } | { valid: false; error: string } {
+  const days = Number(value)
+  if (!Number.isInteger(days) || days < 1 || days > 30) {
+    return { valid: false, error: 'Reminder days must be between 1 and 30.' }
+  }
+  return { valid: true, days }
 }

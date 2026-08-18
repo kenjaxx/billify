@@ -12,6 +12,7 @@ import { getEffectiveStatus } from '@/lib/bill-status'
 import EditBillModal from './EditBillModal'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useTheme } from '@/lib/theme-context'
+import ReceiptViewButton from '@/components/bills/ReceiptViewButton'
 type Bill = {
   id: string
   title: string
@@ -21,6 +22,7 @@ type Bill = {
   categoryId: string
   isRecurring: boolean
   notes: string | null
+  receiptUrl: string | null
   category: { name: string; icon: string | null; color: string | null }
 }
 
@@ -494,48 +496,49 @@ export default function BillList({ refresh }: { refresh: number }) {
                       ₱{bill.amount.toLocaleString()}
                     </span>
                     <div style={{ display: 'flex', gap: '4px' }}>
-                      {effectiveStatus !== 'PAID' && (
-                        <button
-                          onClick={() => handleMarkPaid(bill.id, bill.title)}
-                          disabled={isLoading}
-                          title="Mark as paid"
-                          aria-label={`Mark ${bill.title} as paid`}
-                          style={{
-                            width: '30px', height: '30px', borderRadius: '6px', border: 'none',
-                            background: 'transparent', cursor: 'pointer', display: 'flex',
-                            alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
-                          }}
-                        >
-                          <CheckCheck size={14} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setEditingBill(bill)}
-                        disabled={isLoading}
-                        title="Edit"
-                        aria-label={`Edit ${bill.title}`}
-                        style={{
-                          width: '30px', height: '30px', borderRadius: '6px', border: 'none',
-                          background: 'transparent', cursor: 'pointer', display: 'flex',
-                          alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
-                        }}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => requestDelete(bill.id, bill.title)}
-                        disabled={isLoading}
-                        title="Delete"
-                        aria-label={`Delete ${bill.title}`}
-                        style={{
-                          width: '30px', height: '30px', borderRadius: '6px', border: 'none',
-                          background: 'transparent', cursor: 'pointer', display: 'flex',
-                          alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+  {effectiveStatus !== 'PAID' && (
+    <button
+      onClick={() => handleMarkPaid(bill.id, bill.title)}
+      disabled={isLoading}
+      title="Mark as paid"
+      aria-label={`Mark ${bill.title} as paid`}
+      style={{
+        width: '30px', height: '30px', borderRadius: '6px', border: 'none',
+        background: 'transparent', cursor: 'pointer', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
+      }}
+    >
+      <CheckCheck size={14} />
+    </button>
+  )}
+  {bill.receiptUrl && <ReceiptViewButton billId={bill.id} />}
+  <button
+    onClick={() => setEditingBill(bill)}
+    disabled={isLoading}
+    title="Edit"
+    aria-label={`Edit ${bill.title}`}
+    style={{
+      width: '30px', height: '30px', borderRadius: '6px', border: 'none',
+      background: 'transparent', cursor: 'pointer', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
+    }}
+  >
+    <Pencil size={14} />
+  </button>
+  <button
+    onClick={() => requestDelete(bill.id, bill.title)}
+    disabled={isLoading}
+    title="Delete"
+    aria-label={`Delete ${bill.title}`}
+    style={{
+      width: '30px', height: '30px', borderRadius: '6px', border: 'none',
+      background: 'transparent', cursor: 'pointer', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
+    }}
+  >
+    <Trash2 size={14} />
+  </button>
+</div>
                   </div>
                 </div>
               )

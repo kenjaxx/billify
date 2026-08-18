@@ -1,3 +1,4 @@
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
   output   = "../app/generated/prisma"
@@ -7,19 +8,18 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─── USER ───────────────────────────────────────────
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String?
+  reminderDays Int      @default(7)
+  createdAt    DateTime @default(now())
 
   categories Category[]
   bills      Bill[]
   budgets    Budget[]
 }
 
-// ─── CATEGORY ───────────────────────────────────────
 model Category {
   id        String   @id @default(uuid())
   name      String
@@ -33,7 +33,6 @@ model Category {
   budgets   Budget[]
 }
 
-// ─── BILL ────────────────────────────────────────────
 model Bill {
   id          String     @id @default(uuid())
   title       String
@@ -43,6 +42,8 @@ model Bill {
   status      BillStatus @default(UNPAID)
   notes       String?
   isRecurring Boolean    @default(false)
+  receiptUrl  String?
+  receiptName String?
   userId      String
   categoryId  String
   createdAt   DateTime   @default(now())
@@ -52,7 +53,6 @@ model Bill {
   category    Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 }
 
-// ─── BUDGET ──────────────────────────────────────────
 model Budget {
   id         String   @id @default(uuid())
   amount     Float
@@ -66,7 +66,6 @@ model Budget {
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 }
 
-// ─── ENUMS ───────────────────────────────────────────
 enum BillStatus {
   UNPAID
   PAID

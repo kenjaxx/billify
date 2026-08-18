@@ -1,9 +1,13 @@
+// app/(dashboard)/bills/EditBillModal.tsx — full replacement
 'use client'
 
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTheme } from '@/lib/theme-context'
+import { supabase } from '@/lib/supabase'
+import ReceiptUpload from '@/components/bills/ReceiptUpload'
+
 type Category = { id: string; name: string; icon: string | null }
 
 type Bill = {
@@ -14,6 +18,8 @@ type Bill = {
   categoryId: string
   isRecurring: boolean
   notes: string | null
+  receiptUrl?: string | null
+  receiptName?: string | null
 }
 
 const inputStyle: React.CSSProperties = {
@@ -41,13 +47,16 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
 }) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
   const { theme } = useTheme()
   const [form, setForm] = useState({
     title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: '',
+    receiptUrl: null as string | null, receiptName: null as string | null,
   })
 
   useEffect(() => {
     if (!bill) return
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null))
     fetch('/api/categories').then(r => r.json()).then(setCategories)
     setForm({
       title: bill.title,
@@ -56,6 +65,8 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
       dueDate: bill.dueDate.split('T')[0],
       isRecurring: bill.isRecurring,
       notes: bill.notes ?? '',
+      receiptUrl: bill.receiptUrl ?? null,
+      receiptName: bill.receiptName ?? null,
     })
   }, [bill])
 
@@ -73,6 +84,8 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
           dueDate: form.dueDate,
           isRecurring: form.isRecurring,
           notes: form.notes,
+          receiptUrl: form.receiptUrl,
+          receiptName: form.receiptName,
         }),
       })
       const data = await res.json()
@@ -128,8 +141,8 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
           <div>
             <label style={labelStyle}>Due date</label>
             <input type="date" value={form.dueDate}
-  onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
-  style={{ ...inputStyle, colorScheme: theme }} />
+              onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
+              style={{ ...inputStyle, colorScheme: theme }} />
           </div>
           <div>
             <label style={labelStyle}>Notes (optional)</label>
@@ -137,6 +150,15 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
               onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
               style={{ ...inputStyle, resize: 'none' }} />
           </div>
+          {userId && (
+            <ReceiptUpload
+              userId={userId}
+              billId={bill.id}
+              receiptUrl={form.receiptUrl}
+              receiptName={form.receiptName}
+              onChange={(receiptUrl, receiptName) => setForm(p => ({ ...p, receiptUrl, receiptName }))}
+            />
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input type="checkbox" id="edit-recurring" checked={form.isRecurring}
               onChange={e => setForm(p => ({ ...p, isRecurring: e.target.checked }))}

@@ -1,3 +1,4 @@
+// app/(dashboard)/settings/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -11,6 +12,7 @@ type SettingsData = {
   id: string
   email: string
   name: string | null
+  reminderDays: number
   createdAt: string | null
 }
 
@@ -18,6 +20,7 @@ export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme()
   const [data, setData] = useState<SettingsData | null>(null)
   const [name, setName] = useState('')
+  const [reminderDays, setReminderDays] = useState(7)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -27,6 +30,7 @@ export default function SettingsPage() {
       .then(d => {
         setData(d)
         setName(d.name ?? '')
+        setReminderDays(d.reminderDays ?? 7)
       })
       .finally(() => setLoading(false))
   }, [])
@@ -37,7 +41,7 @@ export default function SettingsPage() {
       const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, reminderDays }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error ?? 'Failed to save')
@@ -164,6 +168,35 @@ export default function SettingsPage() {
             {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
             Switch to {theme === 'dark' ? 'light' : 'dark'}
           </button>
+        </div>
+      </div>
+
+      <div style={{
+        background: 'var(--bg-card)',
+        border: '0.5px solid var(--border)',
+        borderRadius: '12px', padding: '20px', marginBottom: '16px',
+      }}>
+        <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '16px' }}>
+          Reminders
+        </h2>
+        <div>
+          <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+            Notify me this many days before a bill is due
+          </label>
+          <select
+            value={reminderDays}
+            onChange={e => setReminderDays(Number(e.target.value))}
+            style={{
+              width: '100%', background: 'var(--bg-input)',
+              border: '0.5px solid var(--border-input)',
+              borderRadius: '8px', padding: '10px 14px',
+              fontSize: '13px', color: 'var(--text-primary)', outline: 'none',
+            }}
+          >
+            {[1, 3, 5, 7, 10, 14, 30].map(d => (
+              <option key={d} value={d}>{d} day{d !== 1 ? 's' : ''}</option>
+            ))}
+          </select>
         </div>
       </div>
 
