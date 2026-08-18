@@ -1,5 +1,3 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import Papa from 'papaparse'
 import { format } from 'date-fns'
 
@@ -15,8 +13,6 @@ type Bill = {
   categoryId?: string
   category: { name: string; icon: string | null; color?: string | null }
 }
-
-// ── CSV export ─────────────────────────────────────────────────────────────
 
 export function exportToCSV(bills: Bill[], filename = 'bills') {
   const data = bills.map(b => ({
@@ -39,12 +35,6 @@ export function exportToCSV(bills: Bill[], filename = 'bills') {
   URL.revokeObjectURL(url)
 }
 
-// ── PDF export ─────────────────────────────────────────────────────────────
-// jsPDF's built-in fonts (Helvetica etc.) only support the WinAnsi character
-// set, which does not include the ₱ (peso) sign or most accented characters.
-// Without a real Unicode font embedded, those glyphs render as garbage boxes.
-// We embed a subset of Noto Sans (Regular + Bold) at export time to fix this.
-
 const FONT_NAME = 'NotoSans'
 const FONT_FILES: Record<'normal' | 'bold', string> = {
   normal: '/fonts/NotoSans-Regular.ttf',
@@ -64,7 +54,7 @@ async function loadFontBase64(url: string): Promise<string> {
   return btoa(binary)
 }
 
-async function embedUnicodeFont(doc: jsPDF) {
+async function embedUnicodeFont(doc: any) {
   const [regular, bold] = await Promise.all([
     loadFontBase64(FONT_FILES.normal),
     loadFontBase64(FONT_FILES.bold),
@@ -77,7 +67,7 @@ async function embedUnicodeFont(doc: jsPDF) {
 }
 
 function hexToRgb(hex: string | null | undefined): [number, number, number] {
-  const fallback: [number, number, number] = [148, 163, 184] // slate-400
+  const fallback: [number, number, number] = [148, 163, 184]
   if (!hex) return fallback
   const clean = hex.replace('#', '')
   if (clean.length !== 6) return fallback
@@ -115,6 +105,11 @@ export async function exportToPDF(
   filename = 'bills',
   options: { filterSummary?: string } = {}
 ): Promise<void> {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ])
+
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.width
   const pageHeight = doc.internal.pageSize.height
@@ -123,7 +118,6 @@ export async function exportToPDF(
 
   await embedUnicodeFont(doc)
 
-  // ── Header ──────────────────────────────────────────────────────────────
   doc.setFillColor(15, 17, 23)
   doc.rect(0, 0, pageWidth, 40, 'F')
 
@@ -147,7 +141,6 @@ export async function exportToPDF(
     doc.text(`Filtered: ${options.filterSummary}`, pageWidth - marginX, 33, { align: 'right' })
   }
 
-  // ── Summary stats ───────────────────────────────────────────────────────
   const total = bills.reduce((sum, b) => sum + b.amount, 0)
   const paid = bills.filter(b => b.status === 'PAID').length
   const unpaid = bills.filter(b => b.status === 'UNPAID').length
@@ -172,7 +165,6 @@ export async function exportToPDF(
   doc.text(String(unpaid), 116, 58)
   doc.text(String(overdue), 155, 58)
 
-  // ── Category groups ─────────────────────────────────────────────────────
   const groups = groupByCategory(bills)
   let cursorY = 76
 
@@ -194,7 +186,6 @@ export async function exportToPDF(
   groups.forEach(group => {
     ensureSpace(24)
 
-    // Category header bar: color dot + name + count + subtotal
     const [cr, cg, cb] = hexToRgb(group.color)
     doc.setFillColor(245, 247, 255)
     doc.rect(marginX, cursorY, pageWidth - marginX * 2, 10, 'F')
@@ -205,7 +196,7 @@ export async function exportToPDF(
     doc.setFontSize(10)
     doc.setTextColor(30, 30, 30)
     doc.text(group.name, marginX + 11, cursorY + 6.5)
-    const nameWidth = doc.getTextWidth(group.name) // measure at the size it was drawn
+    const nameWidth = doc.getTextWidth(group.name)
 
     doc.setFont(FONT_NAME, 'normal')
     doc.setFontSize(8.5)
@@ -269,8 +260,6 @@ export async function exportToPDF(
         if (data.section === 'body' && data.column.index === 3) {
           data.cell.styles.fontStyle = 'bold'
         }
-        // Text is repainted manually in didDrawCell for these columns —
-        // hide the default text so it isn't drawn twice.
         if (data.section === 'body' && data.column.index === 2) {
           data.cell.text = []
         }
@@ -280,7 +269,6 @@ export async function exportToPDF(
         const bill = group.bills[data.row.index]
         if (!bill) return
 
-        // Status pill
         if (data.column.index === 2) {
           const style = STATUS_STYLES[bill.status]
           doc.setFont(FONT_NAME, 'bold')
@@ -296,7 +284,6 @@ export async function exportToPDF(
           doc.text(bill.status, px + pillW / 2, py + pillH / 2 + 2.6, { align: 'center' })
         }
 
-        // Recurring badge appended after the title
         if (data.column.index === 0 && bill.isRecurring) {
           doc.setFont(FONT_NAME, 'normal')
           doc.setFontSize(9)
@@ -319,11 +306,10 @@ export async function exportToPDF(
       },
     })
 
-    cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+    cursorY = (doc as any).lastAutoTable.finalY + 8
   })
 
-  // ── Footer ──────────────────────────────────────────────────────────────
-  const pageCount = (doc as jsPDF & { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages()
+  const pageCount = (doc as any).internal.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
     doc.setFont(FONT_NAME, 'normal')

@@ -1,43 +1,57 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts'
+import { redirect } from 'next/navigation'
 import { TrendingUp, Wallet, FileText } from 'lucide-react'
+import { prisma } from '@/lib/prisma'
+import { createSupabaseServer } from '@/lib/supabase-server'
+import ReportChartsLoader from './ReportChartsLoader'
 
-type ReportData = {
-  monthly: { month: string; total: number }[]
-  byCategory: { name: string; icon: string | null; total: number }[]
-  totalSpent: number
-  topCategory: { name: string; icon: string | null; total: number } | null
-}
-
-const COLORS = ['#3b82f6', '#fbbf24', '#34d399', '#a78bfa', '#f87171', '#06b6d4']
-
-export default function ReportsPage() {
-  const [data, setData] = useState<ReportData | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/reports').then(r => r.json()).then(setData).finally(() => setLoading(false))
-  }, [])
+export default async function ReportsPage() {
+  const supabase = await createSupabaseServer()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   const now = new Date()
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
 
-  if (loading) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
-      <div style={{
-        width: '24px', height: '24px',
-        border: '2px solid rgba(59,130,246,0.3)',
-        borderTop: '2px solid #3b82f6',
-        borderRadius: '50%', animation: 'spin 0.7s linear infinite',
-      }} />
-    </div>
-  )
+  const bills = await prisma.bill.findMany({
+    where: { userId: user.id, dueDate: { gte: sixMonthsAgo } },
+    include: { category: true },
+    orderBy: { dueDate: 'asc' },
+  })
+
+  const monthlyData: Record<string, number> = {}
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = d.toLocaleString('default', { month: 'short', year: 'numeric' })
+    monthlyData[key] = 0
+  }
+
+  bills.forEach(bill => {
+    const d = new Date(bill.dueDate)
+    const key = d.toLocaleString('default', { month: 'short', year: 'numeric' })
+    if (monthlyData[key] !== undefined) {
+      monthlyData[key] += bill.amount
+    }
+  })
+
+  const monthly = Object.entries(monthlyData).map(([month, total]) => ({ month, total }))
+
+  const categoryData: Record<string, { name: string; icon: string | null; total: number }> = {}
+  bills.forEach(bill => {
+    const key = bill.categoryId
+    if (!categoryData[key]) {
+      categoryData[key] = { name: bill.category.name, icon: bill.category.icon, total: 0 }
+    }
+    categoryData[key].total += bill.amount
+  })
+
+  const byCategory = Object.values(categoryData).sort((a, b) => b.total - a.total)
+  const totalSpent = bills.reduce((sum, b) => sum + b.amount, 0)
+  const topCategory = byCategory[0] ?? null
 
   const summaryCards = [
-    { label: 'Total spent (6 months)', value: `₱${(data?.totalSpent ?? 0).toLocaleString()}`,                         icon: Wallet,    color: '#60a5fa', bg: 'rgba(59,130,246,0.1)' },
-    { label: 'Top category',           value: data?.topCategory ? `${data.topCategory.icon} ${data.topCategory.name}` : '—', icon: TrendingUp, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
-    { label: 'Avg per month',          value: `₱${Math.round((data?.totalSpent ?? 0) / 6).toLocaleString()}`,          icon: FileText,  color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+    { label: 'Total spent (6 months)', value: `₱${totalSpent.toLocaleString()}`, icon: Wallet, color: '#60a5fa', bg: 'rgba(59,130,246,0.1)' },
+    { label: 'Top category', value: topCategory ? `${topCategory.icon} ${topCategory.name}` : '—', icon: TrendingUp, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
+    { label: 'Avg per month', value: `₱${Math.round(totalSpent / 6).toLocaleString()}`, icon: FileText, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
   ]
 
   return (
@@ -71,67 +85,7 @@ export default function ReportsPage() {
         ))}
       </div>
 
-      <div style={{
-        background: 'var(--bg-card)',
-        border: '0.5px solid var(--border)',
-        borderRadius: '12px', padding: '20px', marginBottom: '16px',
-      }}>
-        <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '20px' }}>
-          Monthly spending (last 6 months)
-        </h2>
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data?.monthly ?? []} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => `₱${v.toLocaleString()}`} />
-            <Tooltip
-              contentStyle={{ background: 'var(--tooltip-bg)', border: '0.5px solid var(--border-strong)', borderRadius: '8px', fontSize: '12px', color: '#fff' }}
-              labelStyle={{ color: 'rgba(255,255,255,0.5)' }}
-              itemStyle={{ color: '#fff' }}
-              formatter={(value) => [`₱${Number(value).toLocaleString()}`, 'Total']}
-            />
-            <Bar dataKey="total" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div style={{
-        background: 'var(--bg-card)',
-        border: '0.5px solid var(--border)',
-        borderRadius: '12px', padding: '20px',
-      }}>
-        <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '20px' }}>
-          Spending by category
-        </h2>
-        {(data?.byCategory.length ?? 0) === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px', gap: '8px' }}>
-            <FileText size={32} color="var(--text-faint)" />
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No data yet</p>
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
-              <Pie
-                data={data?.byCategory ?? []}
-                dataKey="total" nameKey="name"
-                cx="50%" cy="50%" outerRadius={100}
-                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                labelLine={false}
-              >
-                {data?.byCategory.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{ background: 'var(--tooltip-bg)', border: '0.5px solid var(--border-strong)', borderRadius: '8px', fontSize: '12px', color: '#fff' }}
-                itemStyle={{ color: '#fff' }}
-                formatter={(value) => [`₱${Number(value).toLocaleString()}`, 'Total']}
-              />
-              <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-secondary)' }} />
-            </PieChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+      <ReportChartsLoader data={{ monthly, byCategory }} />
     </div>
   )
 }

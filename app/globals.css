@@ -62,8 +62,16 @@ html, body {
   overflow-x: hidden;
 }
 
-/* Smooth theme transitions — only on properties we care about, not all */
-body, main, aside, nav, header, section, div, p, span, h1, h2, h3, button, input, select, textarea {
+/* Smooth theme transitions — scoped to surfaces that actually change color,
+   not every element on the page, to keep re-renders and theme toggles cheap */
+body, .dashboard-main {
+  transition: background-color 0.2s ease;
+}
+
+[data-theme] button,
+[data-theme] input,
+[data-theme] select,
+[data-theme] textarea {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
 }
 
@@ -128,3 +136,4 @@ a { text-decoration: none; }
 /* ── Animations ── */
 @keyframes spin    { to { transform: rotate(360deg); } }
 @keyframes dropIn  { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse   { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
