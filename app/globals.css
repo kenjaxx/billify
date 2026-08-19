@@ -290,3 +290,33 @@ input[type="checkbox"] {
     padding: 3px !important;
   }
 }
+
+/* ────────────────────────────────────────────────────────────────
+   Global button glow-on-hover
+   (adapted from Uiverse.io by mrhyddenn)
+   Catches every <button> in the app, plus the shadcn Button
+   component even when rendered via asChild (Link, <a>, etc.)
+   since it always carries data-slot="button".
+   ──────────────────────────────────────────────────────────────── */
+button:not(:disabled),
+[data-slot="button"]:not([aria-disabled="true"]) {
+  transition: box-shadow 0.5s ease,
+              background-color 0.15s ease,
+              border-color 0.15s ease,
+              color 0.15s ease,
+              transform 0.1s ease;
+}
+
+button:not(:disabled):hover,
+[data-slot="button"]:not([aria-disabled="true"]):hover {
+  box-shadow:
+    0 0 5px   rgba(59, 130, 246, 0.9),
+    0 0 25px  rgba(59, 130, 246, 0.55),
+    0 0 50px  rgba(59, 130, 246, 0.3),
+    0 0 90px  rgba(59, 130, 246, 0.15);
+}
+
+button:disabled,
+[data-slot="button"][aria-disabled="true"] {
+  box-shadow: none;
+}
