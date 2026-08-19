@@ -4,7 +4,7 @@
 import { useRef, useState } from 'react'
 import { Paperclip, X, FileText, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
-import { uploadReceipt, validateReceiptFile, deleteReceipt } from '@/lib/supabase-storage'
+import { uploadReceipt, validateReceiptFile } from '@/lib/supabase-storage'
 import { fileToBase64 } from '@/lib/file-to-base64'
 
 type ParsedItem = {
@@ -82,13 +82,14 @@ export default function ReceiptUpload({
     }
   }
 
-  const handleRemove = async () => {
-    if (!receiptUrl) return
-    try {
-      await deleteReceipt(receiptUrl)
-    } catch {
-      // File may already be gone; still clear the reference
-    }
+  // IMPORTANT: this only clears the reference on THIS bill. It intentionally
+  // does NOT delete the file from storage — when a receipt was split into
+  // several bills (AI multi-item parsing), every one of those bills points
+  // at the same storage path. Deleting the object here would silently break
+  // "View Receipt" on all the sibling bills too. If you ever need real
+  // storage cleanup, it has to check no other Bill row still references the
+  // same receiptUrl before calling deleteReceipt().
+  const handleRemove = () => {
     onChange(null, null)
   }
 
@@ -117,7 +118,8 @@ export default function ReceiptUpload({
             type="button"
             onClick={handleRemove}
             disabled={reading}
-            aria-label="Remove receipt"
+            aria-label="Remove receipt from this bill"
+            title="Remove from this bill (the file itself is kept, in case other bills from the same receipt still use it)"
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: reading ? 'not-allowed' : 'pointer', flexShrink: 0 }}
           >
             <X size={14} />
