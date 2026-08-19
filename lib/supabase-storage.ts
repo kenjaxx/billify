@@ -1,4 +1,6 @@
 // lib/supabase-storage.ts
+// Client-safe only — imported by 'use client' components like ReceiptUpload.
+// Must never import supabase-admin here.
 import { supabase } from './supabase'
 
 const BUCKET = 'receipts'
@@ -15,6 +17,8 @@ export function validateReceiptFile(file: File): string | null {
   return null
 }
 
+// Runs in the browser — the signed-in user's session satisfies the
+// bucket's insert policy via RLS.
 export async function uploadReceipt(userId: string, billId: string, file: File) {
   const ext = file.name.split('.').pop()
   const path = `${userId}/${billId}-${Date.now()}.${ext}`
@@ -26,17 +30,4 @@ export async function uploadReceipt(userId: string, billId: string, file: File) 
   if (error) throw new Error(error.message)
 
   return { path, name: file.name }
-}
-
-export async function getReceiptSignedUrl(path: string) {
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(path, 60 * 10)
-  if (error) throw new Error(error.message)
-  return data.signedUrl
-}
-
-export async function deleteReceipt(path: string) {
-  const { error } = await supabase.storage.from(BUCKET).remove([path])
-  if (error) throw new Error(error.message)
 }
