@@ -1,0 +1,56 @@
+.wrapper {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #0a0c10;
+}
+.inner {
+  --w: 130px;
+  --h: 190px;
+  --translateZ: calc((var(--w) + var(--h)) + 40px);
+  --rotateX: -12deg;
+  --perspective: 1400px;
+  --quantity: 7;
+  position: absolute;
+  width: var(--w);
+  height: var(--h);
+  transform-style: preserve-3d;
+  animation: rotating 40s linear infinite;
+}
+@keyframes rotating {
+  from {
+    transform: perspective(var(--perspective)) rotateX(var(--rotateX)) rotateY(0);
+  }
+  to {
+    transform: perspective(var(--perspective)) rotateX(var(--rotateX)) rotateY(1turn);
+  }
+}
+.card {
+  position: absolute;
+  border: 1px solid rgba(var(--color-card), 0.35);
+  border-radius: 16px;
+  overflow: hidden;
+  inset: 0;
+  transform: rotateY(calc((360deg / var(--quantity)) * var(--index))) translateZ(var(--translateZ));
+}
+.img {
+  width: 100%;
+  height: 100%;
+  background: #0000 radial-gradient(
+    circle,
+    rgba(var(--color-card), 0.08) 0%,
+    rgba(var(--color-card), 0.22) 80%,
+    rgba(var(--color-card), 0.32) 100%
+  );
+}
+.vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, transparent 0%, #0a0c10 78%);
+}
