@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FloatingInput } from '@/components/ui/floating-input'
 
 const glassCard: React.CSSProperties = {
   background: 'rgba(22,27,39,0.55)',
@@ -151,42 +152,24 @@ export default function ResetPasswordPage() {
         </div>
       )}
 
-      <div style={{ marginBottom: '12px' }}>
-        <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>
-          New password
-        </label>
-        <input
-          type="password"
-          placeholder="••••••••"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          style={{
-            width: '100%', background: 'rgba(10,12,16,0.5)',
-            border: '0.5px solid rgba(255,255,255,0.08)',
-            borderRadius: '8px', padding: '10px 14px',
-            fontSize: '13px', color: '#fff', outline: 'none',
-          }}
-        />
-      </div>
+      <FloatingInput
+        id="reset-password"
+        label="New password"
+        type="password"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
+        autoComplete="new-password"
+      />
 
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>
-          Confirm new password
-        </label>
-        <input
-          type="password"
-          placeholder="••••••••"
-          value={confirmPassword}
-          onChange={e => setConfirmPassword(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-          style={{
-            width: '100%', background: 'rgba(10,12,16,0.5)',
-            border: '0.5px solid rgba(255,255,255,0.08)',
-            borderRadius: '8px', padding: '10px 14px',
-            fontSize: '13px', color: '#fff', outline: 'none',
-          }}
-        />
-      </div>
+      <FloatingInput
+        id="reset-confirm-password"
+        label="Confirm new password"
+        type="password"
+        value={confirmPassword}
+        onChange={e => setConfirmPassword(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+        autoComplete="new-password"
+      />
 
       <button
         onClick={handleSubmit}

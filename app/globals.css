@@ -320,3 +320,49 @@ button:disabled,
 [data-slot="button"][aria-disabled="true"] {
   box-shadow: none;
 }
+
+/* ────────────────────────────────────────────────────────────────
+   Floating-label inputs (auth pages)
+   (adapted from Uiverse.io by liyaxu123)
+   ──────────────────────────────────────────────────────────────── */
+.form-control {
+  position: relative;
+  width: 100%;
+  margin: 4px 0 26px;
+}
+.form-control input {
+  background-color: transparent;
+  border: 0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+  display: block;
+  width: 100%;
+  padding: 10px 0;
+  font-size: 14px;
+  color: #fff;
+  outline: none;
+  transition: border-color 0.25s ease;
+}
+.form-control input:focus,
+.form-control input:valid {
+  border-bottom-color: #60a5fa;
+}
+.form-control label {
+  position: absolute;
+  top: 10px;
+  left: 0;
+  display: flex;
+  pointer-events: none;
+}
+.form-control label span {
+  display: inline-block;
+  font-size: 14px;
+  min-width: 4px;
+  color: rgba(255, 255, 255, 0.4);
+  transition: 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+.form-control input:focus + label span,
+.form-control input:valid + label span {
+  color: #60a5fa;
+  transform: translateY(-22px);
+  font-size: 11px;
+}

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { FloatingInput } from '@/components/ui/floating-input'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -85,52 +86,26 @@ export default function LoginPage() {
         </div>
       )}
 
-      <div style={{ marginBottom: '12px' }}>
-        <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>
-          Email
-        </label>
-        <input
-          type="email"
-          placeholder="you@email.com"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          style={{
-            width: '100%',
-            background: 'rgba(10,12,16,0.5)',
-            border: '0.5px solid rgba(255,255,255,0.08)',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            fontSize: '13px',
-            color: '#fff',
-            outline: 'none',
-          }}
-        />
-      </div>
+      <FloatingInput
+        id="login-email"
+        label="Email"
+        type="email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        autoComplete="email"
+      />
 
-      <div style={{ marginBottom: '8px' }}>
-        <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>
-          Password
-        </label>
-        <input
-          type="password"
-          placeholder="••••••••"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleLogin()}
-          style={{
-            width: '100%',
-            background: 'rgba(10,12,16,0.5)',
-            border: '0.5px solid rgba(255,255,255,0.08)',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            fontSize: '13px',
-            color: '#fff',
-            outline: 'none',
-          }}
-        />
-      </div>
+      <FloatingInput
+        id="login-password"
+        label="Password"
+        type="password"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && handleLogin()}
+        autoComplete="current-password"
+      />
 
-      <div style={{ textAlign: 'right', marginBottom: '20px' }}>
+      <div style={{ textAlign: 'right', marginBottom: '20px', marginTop: '-10px' }}>
         <a href="/forgot-password" style={{ fontSize: '11px', color: '#60a5fa' }}>
           Forgot password?
         </a>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { FloatingInput } from '@/components/ui/floating-input'
 
 const glassCard: React.CSSProperties = {
   background: 'rgba(22,27,39,0.55)',
@@ -81,24 +82,15 @@ export default function ForgotPasswordPage() {
         </div>
       )}
 
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px' }}>
-          Email
-        </label>
-        <input
-          type="email"
-          placeholder="you@email.com"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-          style={{
-            width: '100%', background: 'rgba(10,12,16,0.5)',
-            border: '0.5px solid rgba(255,255,255,0.08)',
-            borderRadius: '8px', padding: '10px 14px',
-            fontSize: '13px', color: '#fff', outline: 'none',
-          }}
-        />
-      </div>
+      <FloatingInput
+        id="forgot-email"
+        label="Email"
+        type="email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+        autoComplete="email"
+      />
 
       <button
         onClick={handleSubmit}
