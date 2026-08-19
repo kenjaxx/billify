@@ -11,7 +11,7 @@ type ReportData = {
   byCategory: { name: string; icon: string | null; total: number }[]
 }
 
-export default function ReportCharts({ data }: { data: ReportData }) {
+export default function ReportCharts({ data, periodLabel = 'last 6 months' }: { data: ReportData; periodLabel?: string }) {
   return (
     <>
       <div style={{
@@ -20,7 +20,7 @@ export default function ReportCharts({ data }: { data: ReportData }) {
         borderRadius: '12px', padding: '20px', marginBottom: '16px',
       }}>
         <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '20px' }}>
-          Monthly spending (last 6 months)
+          Monthly spending ({periodLabel})
         </h2>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={data.monthly} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>

@@ -5,11 +5,11 @@ import useSWR from 'swr'
 import { useRouter } from 'next/navigation'
 import {
   FileText, CheckCircle, AlertCircle, Clock, Trash2, CheckCheck,
-  Download, Pencil, Search, ArrowUpDown, CalendarDays, Loader2,
+  Pencil, Search, ArrowUpDown, CalendarDays, Loader2,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
-import { exportToCSV, exportToPDF } from '@/lib/export'
+import { exportToPDF } from '@/lib/export'
 import { getEffectiveStatus } from '@/lib/bill-status'
 import { fetcher } from '@/lib/swr-fetcher'
 import { useDebouncedValue } from '@/lib/use-debounce'
@@ -225,15 +225,6 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
     return parts.length > 0 ? parts.join(' · ') : undefined
   }
 
-  const handleExportCSV = () => {
-    try {
-      exportToCSV(filtered)
-      toast.success('CSV exported.')
-    } catch {
-      toast.error('Could not export CSV.')
-    }
-  }
-
   const handleExportPDF = async () => {
     setExportingPdf(true)
     try {
@@ -373,16 +364,6 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
 
       {/* Export bar */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExportCSV}
-          disabled={filtered.length === 0}
-          title={filtered.length === 0 ? 'No bills to export in the current view' : 'Export the currently filtered bills as CSV'}
-        >
-          <Download size={13} />
-          Export CSV
-        </Button>
         <Button
           size="sm"
           onClick={handleExportPDF}

@@ -7,6 +7,7 @@ type ReportChartsProps = {
     monthly: { month: string; total: number }[]
     byCategory: { name: string; icon: string | null; total: number }[]
   }
+  periodLabel?: string
 }
 
 const ReportCharts = dynamic<ReportChartsProps>(() => import('./ReportCharts'), {
