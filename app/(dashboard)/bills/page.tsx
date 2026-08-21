@@ -12,7 +12,7 @@ export default async function BillsPage() {
   if (!user) redirect('/login')
 
   const bills = await prisma.bill.findMany({
-    where: { userId: user.id },
+    where: { userId: user.id, householdId: null },
     include: {
       category: true,
       splits: { include: { householdMember: true } },

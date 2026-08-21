@@ -3,12 +3,21 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import { useRouter } from 'next/navigation'
-import { Users, UserPlus, Trash2, Check, X as XIcon, Home } from 'lucide-react'
+import { format } from 'date-fns'
+import {
+  Users, UserPlus, Trash2, Check, X as XIcon, Home,
+  Pencil, CheckCheck, CheckCircle, Clock, AlertCircle, FileText,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { IconActionButton } from '@/components/ui/icon-action-button'
 import { fetcher } from '@/lib/swr-fetcher'
+import { getEffectiveStatus } from '@/lib/bill-status'
+import EditBillModal from '@/app/(dashboard)/bills/EditBillModal'
+import SplitDetailsModal from '@/components/bills/SplitDetailsModal'
+import ReceiptViewButton from '@/components/bills/ReceiptViewButton'
 
 type Member = {
   id: string
@@ -33,18 +42,29 @@ type Invite = {
   invitedAt: string
 }
 
+type SplitInfo = {
+  id: string
+  amount: number
+  isPaid: boolean
+  householdMember: { id: string; userId: string | null; name: string | null; email: string }
+}
+
 type SharedBill = {
   id: string
   title: string
   amount: number
+  dueDate: string
+  status: 'PAID' | 'UNPAID' | 'OVERDUE'
+  isRecurring: boolean
+  notes: string | null
+  receiptUrl: string | null
+  receiptName: string | null
+  paymentMethod: string | null
+  categoryId: string
   userId: string
   user: { name: string | null; email: string }
-  splits: {
-    id: string
-    amount: number
-    isPaid: boolean
-    householdMember: { id: string; userId: string | null; name: string | null; email: string }
-  }[]
+  category: { name: string; icon: string | null; color: string | null }
+  splits: SplitInfo[]
 }
 
 const inputStyle: React.CSSProperties = {
@@ -56,6 +76,12 @@ const inputStyle: React.CSSProperties = {
   fontSize: '13px',
   color: 'var(--text-primary)',
   outline: 'none',
+}
+
+const statusConfig = {
+  PAID:    { label: 'Paid',    icon: CheckCircle, color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+  UNPAID:  { label: 'Unpaid',  icon: Clock,       color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
+  OVERDUE: { label: 'Overdue', icon: AlertCircle, color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
 }
 
 export default function HouseholdPageClient({
@@ -87,7 +113,7 @@ export default function HouseholdPageClient({
     { fallbackData: initialInvites }
   )
 
-  const { data: sharedBills = [] } = useSWR<SharedBill[]>(
+  const { data: sharedBills = [], mutate: mutateSharedBills } = useSWR<SharedBill[]>(
     household ? '/api/household/bills' : null,
     async (url: string) => {
       const res = await fetcher<{ bills: SharedBill[] }>(url)
@@ -102,6 +128,13 @@ export default function HouseholdPageClient({
   const [invitesActionId, setInvitesActionId] = useState<string | null>(null)
   const [pendingRemove, setPendingRemove] = useState<Member | null>(null)
   const [removing, setRemoving] = useState(false)
+
+  // Shared bill management (owner-only edit/delete/mark-paid, anyone can view splits)
+  const [editingBill, setEditingBill] = useState<SharedBill | null>(null)
+  const [splitModalBill, setSplitModalBill] = useState<SharedBill | null>(null)
+  const [pendingDeleteBill, setPendingDeleteBill] = useState<SharedBill | null>(null)
+  const [billActionLoading, setBillActionLoading] = useState<string | null>(null)
+  const [confirmBillLoading, setConfirmBillLoading] = useState(false)
 
   const handleCreateHousehold = async () => {
     if (!householdName.trim()) return
@@ -179,6 +212,42 @@ export default function HouseholdPageClient({
     } finally {
       setRemoving(false)
       setPendingRemove(null)
+    }
+  }
+
+  const handleMarkPaid = async (bill: SharedBill) => {
+    setBillActionLoading(bill.id)
+    try {
+      const res = await fetch(`/api/bills/${bill.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'PAID' }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(`"${bill.title}" marked as paid.`)
+      await mutateSharedBills()
+    } catch {
+      toast.error('Could not update the bill.')
+    } finally {
+      setBillActionLoading(null)
+    }
+  }
+
+  const confirmDeleteBill = async () => {
+    if (!pendingDeleteBill) return
+    setConfirmBillLoading(true)
+    setBillActionLoading(pendingDeleteBill.id)
+    try {
+      const res = await fetch(`/api/bills/${pendingDeleteBill.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      toast.success(`"${pendingDeleteBill.title}" deleted.`)
+      await mutateSharedBills()
+    } catch {
+      toast.error('Could not delete bill.')
+    } finally {
+      setBillActionLoading(null)
+      setConfirmBillLoading(false)
+      setPendingDeleteBill(null)
     }
   }
 
@@ -349,19 +418,22 @@ export default function HouseholdPageClient({
         ))}
       </div>
 
+      {/* Balances overview */}
       <div style={{
         background: 'var(--bg-card)', border: '0.5px solid var(--border)',
-        borderRadius: '12px', padding: '20px',
+        borderRadius: '12px', padding: '20px', marginBottom: '16px',
       }}>
         <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '16px' }}>
-          Shared bill balances
+          Balances
         </h2>
         {sharedBills.length === 0 ? (
           <EmptyState
             icon={Users}
             title="No shared bills yet"
-            description="Turn on 'Split with household' when adding or editing a bill to see balances here."
+            description="Turn on 'Split with household' when adding or editing a bill on the Bills page — it'll show up here instead of your personal bill list."
           />
+        ) : memberTotals.size === 0 ? (
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No balances to show yet.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {Array.from(memberTotals.entries()).map(([id, entry]) => (
@@ -379,6 +451,119 @@ export default function HouseholdPageClient({
         )}
       </div>
 
+      {/* Full shared bills list — this is where every household member sees
+          bills the creator has shared, instead of on the personal Bills page */}
+      {sharedBills.length > 0 && (
+        <div style={{
+          background: 'var(--bg-card)', border: '0.5px solid var(--border)',
+          borderRadius: '12px', overflow: 'hidden', marginBottom: '16px',
+        }}>
+          <div style={{ padding: '16px 20px', borderBottom: '0.5px solid var(--border)' }}>
+            <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)' }}>Shared bills</h2>
+          </div>
+
+          {sharedBills.map((bill, i) => {
+            const effectiveStatus = getEffectiveStatus(bill)
+            const status = statusConfig[effectiveStatus]
+            const StatusIcon = status.icon
+            const isOwner = bill.userId === currentUserId
+            const isLoading = billActionLoading === bill.id
+            const creatorLabel = bill.user.name ?? bill.user.email.split('@')[0]
+
+            return (
+              <div
+                key={bill.id}
+                className="bill-row"
+                style={{ borderBottom: i < sharedBills.length - 1 ? '0.5px solid var(--border)' : 'none' }}
+              >
+                <div className="bill-row-left">
+                  <div style={{
+                    width: '36px', height: '36px', borderRadius: '8px',
+                    background: 'var(--icon-bg)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px',
+                    flexShrink: 0,
+                  }}>
+                    {bill.category.icon ?? '📄'}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{
+                      fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {bill.title}
+                      {bill.isRecurring && (
+                        <span style={{
+                          marginLeft: '6px', fontSize: '9px', fontWeight: '600',
+                          color: '#60a5fa', background: 'rgba(59,130,246,0.12)',
+                          padding: '1px 6px', borderRadius: '99px',
+                        }}>
+                          RECURRING
+                        </span>
+                      )}
+                    </p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Due {format(new Date(bill.dueDate), 'MMM d, yyyy')} · {bill.category.name} · Added by {isOwner ? 'you' : creatorLabel}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bill-row-right">
+                  <span style={{
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                    fontSize: '11px', fontWeight: '500',
+                    padding: '4px 10px', borderRadius: '99px',
+                    background: status.bg, color: status.color,
+                  }}>
+                    <StatusIcon size={11} />
+                    {status.label}
+                  </span>
+                  <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', minWidth: '80px', textAlign: 'right' }}>
+                    ₱{bill.amount.toLocaleString()}
+                  </span>
+                  <div style={{ display: 'flex', gap: '2px' }}>
+                    <IconActionButton
+                      icon={Users}
+                      tone="info"
+                      label="View split"
+                      onClick={() => setSplitModalBill(bill)}
+                      disabled={isLoading}
+                    />
+                    {bill.receiptUrl && <ReceiptViewButton billId={bill.id} />}
+                    {isOwner && effectiveStatus !== 'PAID' && (
+                      <IconActionButton
+                        icon={CheckCheck}
+                        tone="success"
+                        label="Mark as paid"
+                        onClick={() => handleMarkPaid(bill)}
+                        disabled={isLoading}
+                      />
+                    )}
+                    {isOwner && (
+                      <>
+                        <IconActionButton
+                          icon={Pencil}
+                          tone="default"
+                          label="Edit"
+                          onClick={() => setEditingBill(bill)}
+                          disabled={isLoading}
+                        />
+                        <IconActionButton
+                          icon={Trash2}
+                          tone="danger"
+                          label="Delete"
+                          onClick={() => setPendingDeleteBill(bill)}
+                          disabled={isLoading}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       <ConfirmDialog
         open={pendingRemove !== null}
         title={pendingRemove?.userId === currentUserId ? 'Leave this household?' : 'Remove this member?'}
@@ -391,6 +576,40 @@ export default function HouseholdPageClient({
         loading={removing}
         onConfirm={confirmRemove}
         onCancel={() => setPendingRemove(null)}
+      />
+
+      {editingBill && (
+        <EditBillModal
+          bill={editingBill}
+          onClose={() => setEditingBill(null)}
+          onSuccess={() => {
+            setEditingBill(null)
+            toast.success('Bill updated.')
+            mutateSharedBills()
+          }}
+        />
+      )}
+
+      {splitModalBill && (
+        <SplitDetailsModal
+          billId={splitModalBill.id}
+          billTitle={splitModalBill.title}
+          splits={splitModalBill.splits}
+          currentUserId={currentUserId}
+          canManage={splitModalBill.userId === currentUserId}
+          onClose={() => setSplitModalBill(null)}
+          onUpdated={() => mutateSharedBills()}
+        />
+      )}
+
+      <ConfirmDialog
+        open={pendingDeleteBill !== null}
+        title="Delete this shared bill?"
+        description={`"${pendingDeleteBill?.title ?? ''}" will be permanently deleted for everyone in the household. This cannot be undone.`}
+        confirmLabel="Delete"
+        loading={confirmBillLoading}
+        onConfirm={confirmDeleteBill}
+        onCancel={() => setPendingDeleteBill(null)}
       />
     </div>
   )

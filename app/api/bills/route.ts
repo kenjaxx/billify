@@ -9,8 +9,11 @@ export async function GET() {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+    // Bills that have been shared with a household live exclusively in the
+    // Shared Bills section (see /api/household/bills) so they don't get
+    // mixed in with the user's personal bill list here.
     const bills = await prisma.bill.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, householdId: null },
       include: {
         category: true,
         splits: { include: { householdMember: true } },
