@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 import ReceiptUpload from '@/components/bills/ReceiptUpload'
+import PaymentMethodSelect from '@/components/bills/PaymentMethodSelect'
+import type { PaymentMethod } from '@/lib/payment-method-values'
 
 type Category = { id: string; name: string; icon: string | null }
 
@@ -22,6 +24,7 @@ type Bill = {
   notes: string | null
   receiptUrl?: string | null
   receiptName?: string | null
+  paymentMethod?: string | null
 }
 
 const inputStyle: React.CSSProperties = {
@@ -54,6 +57,7 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
   const [form, setForm] = useState({
     title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: '',
     receiptUrl: null as string | null, receiptName: null as string | null,
+    paymentMethod: null as PaymentMethod | null,
   })
 
   useLockBodyScroll(!!bill)
@@ -71,6 +75,7 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
       notes: bill.notes ?? '',
       receiptUrl: bill.receiptUrl ?? null,
       receiptName: bill.receiptName ?? null,
+      paymentMethod: (bill.paymentMethod as PaymentMethod | null) ?? null,
     })
   }, [bill])
 
@@ -90,6 +95,7 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
           notes: form.notes,
           receiptUrl: form.receiptUrl,
           receiptName: form.receiptName,
+          paymentMethod: form.paymentMethod,
         }),
       })
       const data = await res.json()
@@ -137,6 +143,13 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
             <input type="date" value={form.dueDate}
               onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
               style={{ ...inputStyle, colorScheme: theme }} />
+          </div>
+          <div>
+            <label style={labelStyle}>Payment method (optional)</label>
+            <PaymentMethodSelect
+              value={form.paymentMethod}
+              onChange={pm => setForm(p => ({ ...p, paymentMethod: pm }))}
+            />
           </div>
           <div>
             <label style={labelStyle}>Notes (optional)</label>

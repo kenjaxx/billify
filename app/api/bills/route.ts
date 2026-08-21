@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     if (!validation.valid) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
-    const { title, amount, dueDate, categoryId, isRecurring, notes, receiptUrl, receiptName } = validation.data
+    const { title, amount, dueDate, categoryId, isRecurring, notes, receiptUrl, receiptName, paymentMethod } = validation.data
 
     const category = await prisma.category.findFirst({
       where: { id: categoryId, userId: user.id },
@@ -49,6 +49,7 @@ export async function POST(req: Request) {
         notes,
         receiptUrl,
         receiptName,
+        paymentMethod,
         status: 'UNPAID',
         userId: user.id,
         categoryId,

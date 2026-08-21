@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 import ReceiptUpload from '@/components/bills/ReceiptUpload'
 import ReceiptItemsReview from '@/components/bills/ReceiptItemsReview'
+import PaymentMethodSelect from '@/components/bills/PaymentMethodSelect'
+import type { PaymentMethod } from '@/lib/payment-method-values'
 
 type Category = { id: string; name: string; icon: string | null }
 
@@ -57,6 +59,7 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
   const [form, setForm] = useState({
     title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: '',
     receiptUrl: null as string | null, receiptName: null as string | null,
+    paymentMethod: null as PaymentMethod | null,
   })
 
   useLockBodyScroll(isOpen)
@@ -175,7 +178,10 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
   }
 
   const resetForm = () => {
-    setForm({ title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: '', receiptUrl: null, receiptName: null })
+    setForm({
+      title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: '',
+      receiptUrl: null, receiptName: null, paymentMethod: null,
+    })
     setAiText('')
     setAutoFilled(false)
     setMultiItems(null)
@@ -344,6 +350,13 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
               <input type="date" value={form.dueDate}
                 onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
                 style={{ ...inputStyle, colorScheme: theme }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Payment method (optional)</label>
+              <PaymentMethodSelect
+                value={form.paymentMethod}
+                onChange={pm => setForm(p => ({ ...p, paymentMethod: pm }))}
+              />
             </div>
             <div>
               <label style={labelStyle}>Notes (optional)</label>

@@ -1,5 +1,6 @@
 import Papa from 'papaparse'
 import { format } from 'date-fns'
+import { getPaymentMethodMeta } from './payment-methods'
 
 type BillStatus = 'PAID' | 'UNPAID' | 'OVERDUE'
 
@@ -11,6 +12,7 @@ type Bill = {
   isRecurring?: boolean
   notes?: string | null
   categoryId?: string
+  paymentMethod?: string | null
   category: { name: string; icon: string | null; color?: string | null }
 }
 
@@ -21,6 +23,7 @@ export function exportToCSV(bills: Bill[], filename = 'bills') {
     Amount: b.amount,
     'Due Date': format(new Date(b.dueDate), 'MMM d, yyyy'),
     Status: b.status,
+    'Payment Method': getPaymentMethodMeta(b.paymentMethod)?.label ?? '',
     Recurring: b.isRecurring ? 'Yes' : 'No',
     Notes: b.notes ?? '',
   }))
@@ -215,9 +218,15 @@ export async function exportToPDF(
     cursorY += 13
 
     const hasNotes = group.bills.some(b => b.notes && b.notes.trim())
-    const head = hasNotes
-      ? ['Title', 'Due Date', 'Status', 'Amount', 'Notes']
-      : ['Title', 'Due Date', 'Status', 'Amount']
+    const hasPayment = group.bills.some(b => b.paymentMethod)
+
+    const head = ['Title', 'Due Date', 'Status', 'Amount']
+    if (hasPayment) head.push('Payment')
+    if (hasNotes) head.push('Notes')
+
+    const paymentColIndex = hasPayment ? 4 : -1
+    const notesColIndex = hasNotes ? (hasPayment ? 5 : 4) : -1
+
     const body = group.bills.map(b => {
       const row = [
         b.title,
@@ -225,9 +234,19 @@ export async function exportToPDF(
         b.status,
         `₱${b.amount.toLocaleString()}`,
       ]
+      if (hasPayment) row.push(getPaymentMethodMeta(b.paymentMethod)?.label ?? '—')
       if (hasNotes) row.push(b.notes && b.notes.trim() ? b.notes : '—')
       return row
     })
+
+    const columnStyles: Record<number, any> = {
+      0: { cellWidth: 'auto' },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 24, halign: 'center' },
+      3: { cellWidth: 26, halign: 'right' },
+    }
+    if (hasPayment) columnStyles[paymentColIndex] = { cellWidth: 30, halign: 'center' }
+    if (hasNotes) columnStyles[notesColIndex] = { cellWidth: 42 }
 
     autoTable(doc, {
       startY: cursorY,
@@ -249,18 +268,15 @@ export async function exportToPDF(
         halign: 'left',
       },
       alternateRowStyles: { fillColor: [250, 251, 253] },
-      columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { cellWidth: 28 },
-        2: { cellWidth: 24, halign: 'center' },
-        3: { cellWidth: 26, halign: 'right' },
-        ...(hasNotes ? { 4: { cellWidth: 42 } } : {}),
-      },
+      columnStyles,
       didParseCell: data => {
         if (data.section === 'body' && data.column.index === 3) {
           data.cell.styles.fontStyle = 'bold'
         }
         if (data.section === 'body' && data.column.index === 2) {
+          data.cell.text = []
+        }
+        if (data.section === 'body' && hasPayment && data.column.index === paymentColIndex) {
           data.cell.text = []
         }
       },
@@ -282,6 +298,24 @@ export async function exportToPDF(
           doc.roundedRect(px, py, pillW, pillH, 1.5, 1.5, 'F')
           doc.setTextColor(...style.text)
           doc.text(bill.status, px + pillW / 2, py + pillH / 2 + 2.6, { align: 'center' })
+        }
+
+        if (hasPayment && data.column.index === paymentColIndex) {
+          const meta = getPaymentMethodMeta(bill.paymentMethod)
+          doc.setFont(FONT_NAME, 'normal')
+          doc.setFontSize(8)
+          if (meta) {
+            const [pr, pg, pb] = hexToRgb(meta.color)
+            const dotX = data.cell.x + data.cell.width / 2 - (doc.getTextWidth(meta.label) / 2) - 4
+            const dotY = data.cell.y + data.cell.height / 2
+            doc.setFillColor(pr, pg, pb)
+            doc.circle(dotX, dotY, 1.3, 'F')
+            doc.setTextColor(70, 70, 70)
+            doc.text(meta.label, data.cell.x + data.cell.width / 2 + 2, dotY + 1.2, { align: 'center' })
+          } else {
+            doc.setTextColor(170, 170, 170)
+            doc.text('—', data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 1.2, { align: 'center' })
+          }
         }
 
         if (data.column.index === 0 && bill.isRecurring) {

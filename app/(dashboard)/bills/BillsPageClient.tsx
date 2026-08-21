@@ -17,6 +17,7 @@ type Bill = {
   isRecurring: boolean
   notes: string | null
   receiptUrl: string | null
+  paymentMethod: string | null
   category: { name: string; icon: string | null; color: string | null }
 }
 

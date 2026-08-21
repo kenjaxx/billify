@@ -27,6 +27,7 @@ export default async function BillsPage() {
     isRecurring: b.isRecurring,
     notes: b.notes,
     receiptUrl: b.receiptUrl,
+    paymentMethod: b.paymentMethod,
     category: { name: b.category.name, icon: b.category.icon, color: b.category.color },
   }))
 

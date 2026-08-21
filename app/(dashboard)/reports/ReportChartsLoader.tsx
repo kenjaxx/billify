@@ -6,6 +6,7 @@ type ReportChartsProps = {
   data: {
     monthly: { month: string; total: number }[]
     byCategory: { name: string; icon: string | null; total: number }[]
+    byPaymentMethod: { name: string; color: string; total: number }[]
   }
   periodLabel?: string
 }

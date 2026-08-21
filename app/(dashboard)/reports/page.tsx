@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { TrendingUp, Wallet, FileText } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { createSupabaseServer } from '@/lib/supabase-server'
+import { getPaymentMethodMeta } from '@/lib/payment-methods'
 import ReportChartsLoader from './ReportChartsLoader'
 import ReportsPeriodSelector from './ReportsPeriodSelector'
 import { TrendBadge } from '@/components/ui/trend-badge'
@@ -93,6 +94,23 @@ export default async function ReportsPage({
   })
 
   const byCategory = Object.values(categoryData).sort((a, b) => b.total - a.total)
+
+  // Group by payment method
+  const paymentData: Record<string, { name: string; color: string; total: number }> = {}
+  bills.forEach(bill => {
+    const meta = getPaymentMethodMeta(bill.paymentMethod)
+    const key = meta ? meta.value : 'UNSPECIFIED'
+    if (!paymentData[key]) {
+      paymentData[key] = {
+        name: meta ? meta.label : 'Not specified',
+        color: meta ? meta.color : '#94a3b8',
+        total: 0,
+      }
+    }
+    paymentData[key].total += bill.amount
+  })
+  const byPaymentMethod = Object.values(paymentData).sort((a, b) => b.total - a.total)
+
   const totalSpent = bills.reduce((sum, b) => sum + b.amount, 0)
   const topCategory = byCategory[0] ?? null
 
@@ -152,7 +170,7 @@ export default async function ReportsPage({
         ))}
       </div>
 
-      <ReportChartsLoader data={{ monthly, byCategory }} periodLabel={periodLabel.toLowerCase()} />
+      <ReportChartsLoader data={{ monthly, byCategory, byPaymentMethod }} periodLabel={periodLabel.toLowerCase()} />
     </div>
   )
 }

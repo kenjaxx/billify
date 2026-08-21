@@ -35,20 +35,21 @@ model Category {
 }
 
 model Bill {
-  id          String     @id @default(uuid())
-  title       String
-  amount      Float
-  dueDate     DateTime
-  paidAt      DateTime?
-  status      BillStatus @default(UNPAID)
-  notes       String?
-  isRecurring Boolean    @default(false)
-  receiptUrl  String?
-  receiptName String?
-  userId      String
-  categoryId  String
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id            String         @id @default(uuid())
+  title         String
+  amount        Float
+  dueDate       DateTime
+  paidAt        DateTime?
+  status        BillStatus     @default(UNPAID)
+  notes         String?
+  isRecurring   Boolean        @default(false)
+  receiptUrl    String?
+  receiptName   String?
+  paymentMethod PaymentMethod?
+  userId        String
+  categoryId    String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -86,4 +87,14 @@ enum BillStatus {
   UNPAID
   PAID
   OVERDUE
+}
+
+enum PaymentMethod {
+  CASH
+  GCASH
+  MAYA
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  OTHER
 }

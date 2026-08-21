@@ -1,4 +1,6 @@
 // lib/validation.ts
+import { PAYMENT_METHOD_VALUES, isValidPaymentMethod, type PaymentMethod } from './payment-method-values'
+
 export function isValidAmount(amount: unknown): amount is number {
   return typeof amount === 'number' && Number.isFinite(amount) && amount > 0
 }
@@ -22,6 +24,7 @@ export type BillInput = {
   notes: string | null
   receiptUrl: string | null
   receiptName: string | null
+  paymentMethod: PaymentMethod | null
 }
 
 export function validateBillInput(
@@ -38,6 +41,9 @@ export function validateBillInput(
   if (body.receiptUrl !== undefined && body.receiptUrl !== null && typeof body.receiptUrl !== 'string') {
     return { valid: false, error: 'Invalid receipt.' }
   }
+  if (body.paymentMethod !== undefined && body.paymentMethod !== null && !isValidPaymentMethod(body.paymentMethod)) {
+    return { valid: false, error: 'Invalid payment method.' }
+  }
 
   return {
     valid: true,
@@ -50,6 +56,7 @@ export function validateBillInput(
       notes: body.notes ? String(body.notes).trim() : null,
       receiptUrl: body.receiptUrl ? String(body.receiptUrl) : null,
       receiptName: body.receiptName ? String(body.receiptName) : null,
+      paymentMethod: body.paymentMethod && isValidPaymentMethod(body.paymentMethod) ? body.paymentMethod : null,
     },
   }
 }
@@ -86,3 +93,6 @@ export function validateReminderDays(value: unknown): { valid: true; days: numbe
   }
   return { valid: true, days }
 }
+
+export { PAYMENT_METHOD_VALUES, isValidPaymentMethod }
+export type { PaymentMethod }

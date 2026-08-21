@@ -1,7 +1,7 @@
 'use client'
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts'
-import { FileText } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, Legend, LabelList } from 'recharts'
+import { FileText, CreditCard } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 
 const COLORS = ['#3b82f6', '#fbbf24', '#34d399', '#a78bfa', '#f87171', '#06b6d4']
@@ -9,6 +9,7 @@ const COLORS = ['#3b82f6', '#fbbf24', '#34d399', '#a78bfa', '#f87171', '#06b6d4'
 type ReportData = {
   monthly: { month: string; total: number }[]
   byCategory: { name: string; icon: string | null; total: number }[]
+  byPaymentMethod: { name: string; color: string; total: number }[]
 }
 
 export default function ReportCharts({ data, periodLabel = 'last 6 months' }: { data: ReportData; periodLabel?: string }) {
@@ -41,7 +42,7 @@ export default function ReportCharts({ data, periodLabel = 'last 6 months' }: { 
       <div style={{
         background: 'var(--bg-card)',
         border: '0.5px solid var(--border)',
-        borderRadius: '12px', padding: '20px',
+        borderRadius: '12px', padding: '20px', marginBottom: '16px',
       }}>
         <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '20px' }}>
           Spending by category
@@ -74,6 +75,56 @@ export default function ReportCharts({ data, periodLabel = 'last 6 months' }: { 
               />
               <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-secondary)' }} />
             </PieChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      <div style={{
+        background: 'var(--bg-card)',
+        border: '0.5px solid var(--border)',
+        borderRadius: '12px', padding: '20px',
+      }}>
+        <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '20px' }}>
+          Spending by payment method
+        </h2>
+        {data.byPaymentMethod.length === 0 ? (
+          <EmptyState
+            icon={CreditCard}
+            title="No data yet"
+            description="Tag your bills with how you paid them to see a breakdown here."
+          />
+        ) : (
+          <ResponsiveContainer width="100%" height={Math.max(160, data.byPaymentMethod.length * 42)}>
+            <BarChart
+              data={data.byPaymentMethod}
+              layout="vertical"
+              margin={{ top: 0, right: 24, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => `₱${v.toLocaleString()}`} />
+              <YAxis
+                type="category" dataKey="name" width={110}
+                tick={{ fontSize: 12, fill: 'var(--text-secondary)' }}
+                axisLine={false} tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{ background: 'var(--tooltip-bg)', border: '0.5px solid var(--border-strong)', borderRadius: '8px', fontSize: '12px', color: '#fff' }}
+                itemStyle={{ color: '#fff' }}
+                cursor={{ fill: 'var(--bg-hover)' }}
+                formatter={(value) => [`₱${Number(value).toLocaleString()}`, 'Total']}
+              />
+              <Bar dataKey="total" radius={[0, 6, 6, 0]} barSize={18}>
+                {data.byPaymentMethod.map((entry, i) => (
+                  <Cell key={i} fill={entry.color} />
+                ))}
+               <LabelList
+  dataKey="total"
+  position="right"
+  formatter={(v) => `₱${Number(v).toLocaleString()}`}
+  style={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+/>
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         )}
       </div>

@@ -1,3 +1,4 @@
+// app/(dashboard)/bills/BillList.tsx
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
@@ -5,7 +6,7 @@ import useSWR from 'swr'
 import { useRouter } from 'next/navigation'
 import {
   FileText, CheckCircle, AlertCircle, Clock, Trash2, CheckCheck,
-  Pencil, Search, ArrowUpDown, CalendarDays, Loader2,
+  Pencil, Search, ArrowUpDown, CalendarDays, Loader2, Wallet,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -20,6 +21,9 @@ import EditBillModal from './EditBillModal'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useTheme } from '@/lib/theme-context'
 import ReceiptViewButton from '@/components/bills/ReceiptViewButton'
+import PaymentMethodSelect from '@/components/bills/PaymentMethodSelect'
+import { PAYMENT_METHODS, getPaymentMethodMeta } from '@/lib/payment-methods'
+import type { PaymentMethod } from '@/lib/payment-method-values'
 
 type Bill = {
   id: string
@@ -31,6 +35,7 @@ type Bill = {
   isRecurring: boolean
   notes: string | null
   receiptUrl: string | null
+  paymentMethod: string | null
   category: { name: string; icon: string | null; color: string | null }
 }
 
@@ -43,6 +48,7 @@ const statusConfig = {
 const filters = ['ALL', 'UNPAID', 'PAID', 'OVERDUE'] as const
 type SortOption = 'dueDateAsc' | 'dueDateDesc' | 'amountDesc' | 'amountAsc' | 'titleAsc'
 type DateRangeOption = 'all' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'custom'
+type PaymentFilterOption = PaymentMethod | 'ALL'
 
 const selectStyle: React.CSSProperties = {
   background: 'var(--bg-input)',
@@ -84,6 +90,7 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
   const [dateRange, setDateRange] = useState<DateRangeOption>('all')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilterOption>('ALL')
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
@@ -124,6 +131,23 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
       toast.error('Could not update the bill.')
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  const handlePaymentMethodChange = async (billId: string, method: PaymentMethod | null) => {
+    const previous = bills.find(b => b.id === billId)?.paymentMethod ?? null
+    mutate(bills.map(b => (b.id === billId ? { ...b, paymentMethod: method } : b)), false)
+    try {
+      const res = await fetch(`/api/bills/${billId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentMethod: method }),
+      })
+      if (!res.ok) throw new Error()
+      await mutate()
+    } catch {
+      toast.error('Could not update payment method.')
+      mutate(bills.map(b => (b.id === billId ? { ...b, paymentMethod: previous } : b)), false)
     }
   }
 
@@ -191,6 +215,10 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
     return true
   })
 
+  if (paymentFilter !== 'ALL') {
+    filtered = filtered.filter(b => b.paymentMethod === paymentFilter)
+  }
+
   if (debouncedSearch.trim()) {
     const q = debouncedSearch.trim().toLowerCase()
     filtered = filtered.filter(b =>
@@ -220,6 +248,9 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
       }
     } else if (dateRangeLabels[dateRange]) {
       parts.push(dateRangeLabels[dateRange])
+    }
+    if (paymentFilter !== 'ALL') {
+      parts.push(getPaymentMethodMeta(paymentFilter)?.label ?? paymentFilter)
     }
     if (search.trim()) parts.push(`"${search.trim()}"`)
     return parts.length > 0 ? parts.join(' · ') : undefined
@@ -300,7 +331,7 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
         ))}
       </div>
 
-      {/* Search / sort / date range toolbar */}
+      {/* Search / sort / date range / payment filter toolbar */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
           <Search size={13} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
@@ -348,6 +379,21 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
             <option value="lastMonth">Last month</option>
             <option value="thisYear">This year</option>
             <option value="custom">Custom range</option>
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Wallet size={13} color="var(--text-muted)" />
+          <select
+            value={paymentFilter}
+            onChange={e => setPaymentFilter(e.target.value as PaymentFilterOption)}
+            style={selectStyle}
+            aria-label="Filter by payment method"
+          >
+            <option value="ALL">All payment methods</option>
+            {PAYMENT_METHODS.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
           </select>
         </div>
 
@@ -522,6 +568,13 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
                       <StatusIcon size={11} />
                       {status.label}
                     </span>
+                    <PaymentMethodSelect
+                      variant="compact"
+                      value={bill.paymentMethod as PaymentMethod | null}
+                      onChange={pm => handlePaymentMethodChange(bill.id, pm)}
+                      placeholder="Add payment"
+                      disabled={isLoading}
+                    />
                     <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', minWidth: '80px', textAlign: 'right' }}>
                       ₱{bill.amount.toLocaleString()}
                     </span>

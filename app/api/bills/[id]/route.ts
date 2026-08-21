@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
 import { validateBillInput } from '@/lib/validation'
 import { createNextRecurrence } from '@/lib/bill-recurrence'
+import { isValidPaymentMethod } from '@/lib/payment-method-values'
 
 export async function PATCH(
   req: Request,
@@ -39,6 +40,20 @@ export async function PATCH(
       return NextResponse.json(updated)
     }
 
+    // Quick path: updating only the payment method tag (used by the
+    // inline selector on the Bills list), without touching anything else.
+    if ('paymentMethod' in body && Object.keys(body).length === 1) {
+      if (body.paymentMethod !== null && !isValidPaymentMethod(body.paymentMethod)) {
+        return NextResponse.json({ error: 'Invalid payment method.' }, { status: 400 })
+      }
+
+      const updated = await prisma.bill.update({
+        where: { id },
+        data: { paymentMethod: body.paymentMethod ?? null },
+      })
+      return NextResponse.json(updated)
+    }
+
     if (body.receiptUrl === null && Object.keys(body).length <= 2) {
       const updated = await prisma.bill.update({
         where: { id },
@@ -56,11 +71,12 @@ export async function PATCH(
       notes: body.notes ?? existing.notes,
       receiptUrl: body.receiptUrl !== undefined ? body.receiptUrl : existing.receiptUrl,
       receiptName: body.receiptName !== undefined ? body.receiptName : existing.receiptName,
+      paymentMethod: body.paymentMethod !== undefined ? body.paymentMethod : existing.paymentMethod,
     })
     if (!validation.valid) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
-    const { title, amount, dueDate, categoryId, isRecurring, notes, receiptUrl, receiptName } = validation.data
+    const { title, amount, dueDate, categoryId, isRecurring, notes, receiptUrl, receiptName, paymentMethod } = validation.data
 
     const category = await prisma.category.findFirst({
       where: { id: categoryId, userId: user.id },
@@ -71,7 +87,7 @@ export async function PATCH(
 
     const bill = await prisma.bill.update({
       where: { id },
-      data: { title, amount, dueDate: new Date(dueDate), categoryId, isRecurring, notes, receiptUrl, receiptName },
+      data: { title, amount, dueDate: new Date(dueDate), categoryId, isRecurring, notes, receiptUrl, receiptName, paymentMethod },
     })
     return NextResponse.json(bill)
   } catch (error) {

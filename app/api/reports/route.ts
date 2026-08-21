@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
+import { getPaymentMethodMeta } from '@/lib/payment-methods'
 
 export async function GET() {
   try {
@@ -48,10 +49,28 @@ export async function GET() {
     })
 
     const byCategory = Object.values(categoryData).sort((a, b) => b.total - a.total)
+
+    // Group by payment method — bills with no tag fall into "Not specified"
+    // so the breakdown still accounts for the full total spent.
+    const paymentData: Record<string, { name: string; color: string; total: number }> = {}
+    bills.forEach(bill => {
+      const meta = getPaymentMethodMeta(bill.paymentMethod)
+      const key = meta ? meta.value : 'UNSPECIFIED'
+      if (!paymentData[key]) {
+        paymentData[key] = {
+          name: meta ? meta.label : 'Not specified',
+          color: meta ? meta.color : '#94a3b8',
+          total: 0,
+        }
+      }
+      paymentData[key].total += bill.amount
+    })
+    const byPaymentMethod = Object.values(paymentData).sort((a, b) => b.total - a.total)
+
     const totalSpent = bills.reduce((sum, b) => sum + b.amount, 0)
     const topCategory = byCategory[0] ?? null
 
-    return NextResponse.json({ monthly, byCategory, totalSpent, topCategory })
+    return NextResponse.json({ monthly, byCategory, byPaymentMethod, totalSpent, topCategory })
   } catch (error) {
     console.error('Reports GET error:', error)
     return NextResponse.json({ error: 'Failed to fetch reports' }, { status: 500 })
