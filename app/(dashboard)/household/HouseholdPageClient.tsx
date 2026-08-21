@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import {
   Users, UserPlus, Trash2, Check, X as XIcon, Home,
-  Pencil, CheckCircle, Clock, AlertCircle,
+  Pencil, CheckCircle, Clock, AlertCircle, CheckCircle2,
+  Wallet, ArrowUpRight, ArrowDownLeft, FileDown, Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { IconActionButton } from '@/components/ui/icon-action-button'
 import { fetcher } from '@/lib/swr-fetcher'
+import { exportSharedBillsToPDF } from '@/lib/export'
 import EditBillModal from '@/app/(dashboard)/bills/EditBillModal'
 import SplitDetailsModal from '@/components/bills/SplitDetailsModal'
 import ReceiptViewButton from '@/components/bills/ReceiptViewButton'
@@ -45,6 +47,7 @@ type SplitInfo = {
   id: string
   amount: number
   isPaid: boolean
+  paidAt?: string | null
   householdMember: { id: string; userId: string | null; name: string | null; email: string }
 }
 
@@ -77,27 +80,28 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
 }
 
-// Derives a display status from the SPLITS rather than trusting the raw
-// bill.status alone — a bill can be "fully paid" the moment every member's
-// share is settled (handled by the split PATCH route), but while that's in
-// progress we want to show "Pending" instead of a flat Unpaid/Overdue.
+// Derives a display status from the SPLITS, not just the raw bill.status —
+// a bill can be "fully paid" only once every member's share is settled
+// (handled server-side by the split PATCH route); while that's in progress
+// we show "Pending" instead of a flat Unpaid/Overdue.
 function getSplitDisplay(bill: SharedBill) {
   const total = bill.amount
   const paid = bill.splits.reduce((sum, s) => sum + (s.isPaid ? s.amount : 0), 0)
   const isFullyPaid = bill.splits.length > 0 && bill.splits.every(s => s.isPaid)
+  const pct = total > 0 ? Math.min(Math.round((paid / total) * 100), 100) : 0
 
   if (isFullyPaid) {
-    return { paid, total, label: 'Paid', color: '#34d399', bg: 'rgba(52,211,153,0.1)', Icon: CheckCircle }
+    return { paid, total, pct: 100, label: 'Paid', color: '#34d399', bg: 'rgba(52,211,153,0.12)', Icon: CheckCircle }
   }
   if (paid > 0) {
-    return { paid, total, label: 'Pending', color: '#60a5fa', bg: 'rgba(59,130,246,0.1)', Icon: Clock }
+    return { paid, total, pct, label: 'Pending', color: '#60a5fa', bg: 'rgba(59,130,246,0.12)', Icon: Clock }
   }
 
   const isOverdue = new Date(bill.dueDate) < new Date(new Date().setHours(0, 0, 0, 0))
   if (isOverdue) {
-    return { paid, total, label: 'Overdue', color: '#f87171', bg: 'rgba(248,113,113,0.1)', Icon: AlertCircle }
+    return { paid, total, pct, label: 'Overdue', color: '#f87171', bg: 'rgba(248,113,113,0.12)', Icon: AlertCircle }
   }
-  return { paid, total, label: 'Unpaid', color: '#fbbf24', bg: 'rgba(251,191,36,0.1)', Icon: Clock }
+  return { paid, total, pct, label: 'Unpaid', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)', Icon: Clock }
 }
 
 export default function HouseholdPageClient({
@@ -152,6 +156,7 @@ export default function HouseholdPageClient({
   const [billActionLoading, setBillActionLoading] = useState<string | null>(null)
   const [confirmBillLoading, setConfirmBillLoading] = useState(false)
   const [splitActionLoadingId, setSplitActionLoadingId] = useState<string | null>(null)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   const handleCreateHousehold = async () => {
     if (!householdName.trim()) return
@@ -232,9 +237,9 @@ export default function HouseholdPageClient({
     }
   }
 
-  // Toggles the CURRENT user's own share on a shared bill. Any household
-  // member can do this for their own split; the bill's overall status is
-  // auto-recalculated server-side once every member's share is paid.
+  // Toggles the CURRENT user's own share on a shared bill. The bill's
+  // overall status is auto-recalculated server-side once every member's
+  // share is paid.
   const toggleMySplit = async (bill: SharedBill, split: SplitInfo) => {
     setSplitActionLoadingId(split.id)
     try {
@@ -271,6 +276,36 @@ export default function HouseholdPageClient({
     }
   }
 
+  const handleExportPdf = async () => {
+    if (!household) return
+    setExportingPdf(true)
+    try {
+      await exportSharedBillsToPDF(
+        sharedBills.map(bill => ({
+          title: bill.title,
+          categoryName: bill.category.name,
+          categoryColor: bill.category.color,
+          dueDate: bill.dueDate,
+          amount: bill.amount,
+          addedBy: bill.userId === currentUserId ? 'you' : (bill.user.name ?? bill.user.email.split('@')[0]),
+          splits: bill.splits.map(s => ({
+            memberName: s.householdMember.name ?? s.householdMember.email.split('@')[0],
+            amount: s.amount,
+            isPaid: s.isPaid,
+            paidAt: s.paidAt,
+          })),
+        })),
+        household.name,
+        'shared-bills'
+      )
+      toast.success('PDF exported.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not export PDF.')
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
   // Household-wide ledger — each member's total owed vs. total paid
   // across every bill shared with this household.
   const memberTotals = new Map<string, { name: string; owed: number; paid: number }>()
@@ -284,6 +319,20 @@ export default function HouseholdPageClient({
       memberTotals.set(key, entry)
     })
   })
+
+  // Personal at-a-glance stats for the current user
+  let youOwe = 0
+  let owedToYou = 0
+  sharedBills.forEach(bill => {
+    bill.splits.forEach(split => {
+      if (split.isPaid) return
+      const isYourShare = split.householdMember.userId === currentUserId
+      if (isYourShare && bill.userId !== currentUserId) youOwe += split.amount
+      if (!isYourShare && bill.userId === currentUserId) owedToYou += split.amount
+    })
+  })
+  const totalShared = sharedBills.reduce((sum, b) => sum + b.amount, 0)
+  const settledCount = sharedBills.filter(b => getSplitDisplay(b).label === 'Paid').length
 
   if (!household) {
     return (
@@ -354,13 +403,40 @@ export default function HouseholdPageClient({
   }
 
   return (
-    <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '28px' }}>
+    <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '22px', fontWeight: '500', color: 'var(--text-primary)' }}>{household.name}</h1>
         <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
           {household.members.filter(m => m.status === 'ACCEPTED').length} member(s) sharing bills
         </p>
       </div>
+
+      {/* At-a-glance stat cards */}
+      {sharedBills.length > 0 && (
+        <div className="stat-grid" style={{ marginBottom: '20px' }}>
+          {[
+            { label: 'Total shared', value: `₱${totalShared.toLocaleString()}`, icon: Wallet, color: '#60a5fa', bg: 'rgba(59,130,246,0.1)' },
+            { label: 'You owe', value: `₱${youOwe.toLocaleString()}`, icon: ArrowUpRight, color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
+            { label: 'Owed to you', value: `₱${owedToYou.toLocaleString()}`, icon: ArrowDownLeft, color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+            { label: 'Fully settled', value: `${settledCount}/${sharedBills.length}`, icon: CheckCircle2, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+          ].map(({ label, value, icon: Icon, color, bg }) => (
+            <div key={label} style={{
+              background: 'var(--bg-card)', border: '0.5px solid var(--border)',
+              borderRadius: '12px', padding: '16px',
+            }}>
+              <div style={{
+                width: '34px', height: '34px', borderRadius: '8px',
+                background: bg, display: 'flex', alignItems: 'center',
+                justifyContent: 'center', marginBottom: '12px',
+              }}>
+                <Icon size={16} color={color} />
+              </div>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>{label}</p>
+              <p style={{ fontSize: '18px', fontWeight: '500', color: 'var(--text-primary)' }}>{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {household.isOwner && (
         <div style={{
@@ -438,7 +514,7 @@ export default function HouseholdPageClient({
         ))}
       </div>
 
-      {/* Balances overview */}
+      {/* Per-member balance breakdown */}
       <div style={{
         background: 'var(--bg-card)', border: '0.5px solid var(--border)',
         borderRadius: '12px', padding: '20px', marginBottom: '16px',
@@ -456,29 +532,53 @@ export default function HouseholdPageClient({
           <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No balances to show yet.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {Array.from(memberTotals.entries()).map(([id, entry]) => (
-              <div key={id} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '10px 12px', borderRadius: '8px', background: 'var(--bg-tertiary)',
-              }}>
-                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{entry.name}</span>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  ₱{entry.paid.toLocaleString()} paid of ₱{entry.owed.toLocaleString()}
-                </span>
-              </div>
-            ))}
+            {Array.from(memberTotals.entries()).map(([id, entry]) => {
+              const pct = entry.owed > 0 ? Math.min(Math.round((entry.paid / entry.owed) * 100), 100) : 0
+              return (
+                <div key={id} style={{
+                  padding: '10px 12px', borderRadius: '8px', background: 'var(--bg-tertiary)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{entry.name}</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      ₱{entry.paid.toLocaleString()} / ₱{entry.owed.toLocaleString()}
+                    </span>
+                  </div>
+                  <div style={{ background: 'var(--icon-bg)', borderRadius: '99px', height: '5px' }}>
+                    <div style={{
+                      height: '5px', borderRadius: '99px', width: `${pct}%`,
+                      background: pct === 100 ? '#34d399' : '#60a5fa', transition: 'width 0.3s ease',
+                    }} />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
 
-      {/* Full shared bills list */}
+      {/* Shared bills list */}
       {sharedBills.length > 0 && (
         <div style={{
           background: 'var(--bg-card)', border: '0.5px solid var(--border)',
           borderRadius: '12px', overflow: 'hidden', marginBottom: '16px',
         }}>
-          <div style={{ padding: '16px 20px', borderBottom: '0.5px solid var(--border)' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '16px 20px', borderBottom: '0.5px solid var(--border)', flexWrap: 'wrap', gap: '10px',
+          }}>
             <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)' }}>Shared bills</h2>
+            <Button
+              size="sm"
+              onClick={handleExportPdf}
+              disabled={exportingPdf}
+              style={{ background: 'rgba(59,130,246,0.12)', color: '#60a5fa' }}
+            >
+              {exportingPdf
+                ? <><Loader2 size={13} className="animate-spin" /> Generating...</>
+                : <><FileDown size={13} /> Export PDF</>
+              }
+            </Button>
           </div>
 
           {sharedBills.map((bill, i) => {
@@ -489,61 +589,145 @@ export default function HouseholdPageClient({
             const creatorLabel = bill.user.name ?? bill.user.email.split('@')[0]
             const mySplit = bill.splits.find(s => s.householdMember.userId === currentUserId) ?? null
             const mySplitLoading = mySplit ? splitActionLoadingId === mySplit.id : false
+            const accentColor = bill.category.color ?? 'var(--border-strong)'
 
             return (
               <div
                 key={bill.id}
-                className="bill-row"
-                style={{ borderBottom: i < sharedBills.length - 1 ? '0.5px solid var(--border)' : 'none' }}
+                style={{
+                  position: 'relative',
+                  padding: '16px 20px 16px 22px',
+                  borderBottom: i < sharedBills.length - 1 ? '0.5px solid var(--border)' : 'none',
+                }}
               >
-                <div className="bill-row-left">
-                  <div style={{
-                    width: '36px', height: '36px', borderRadius: '8px',
-                    background: 'var(--icon-bg)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px',
-                    flexShrink: 0,
-                  }}>
-                    {bill.category.icon ?? '📄'}
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{
-                      fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                {/* category accent */}
+                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px', background: accentColor }} />
+
+                {/* header row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                    <div style={{
+                      width: '36px', height: '36px', borderRadius: '8px',
+                      background: 'var(--icon-bg)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px',
+                      flexShrink: 0,
                     }}>
-                      {bill.title}
-                      {bill.isRecurring && (
-                        <span style={{
-                          marginLeft: '6px', fontSize: '9px', fontWeight: '600',
-                          color: '#60a5fa', background: 'rgba(59,130,246,0.12)',
-                          padding: '1px 6px', borderRadius: '99px',
-                        }}>
-                          RECURRING
-                        </span>
+                      {bill.category.icon ?? '📄'}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{
+                        fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {bill.title}
+                        {bill.isRecurring && (
+                          <span style={{
+                            marginLeft: '6px', fontSize: '9px', fontWeight: '600',
+                            color: '#60a5fa', background: 'rgba(59,130,246,0.12)',
+                            padding: '1px 6px', borderRadius: '99px',
+                          }}>
+                            RECURRING
+                          </span>
+                        )}
+                      </p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        Due {format(new Date(bill.dueDate), 'MMM d, yyyy')} · {bill.category.name} · Added by {isOwner ? 'you' : creatorLabel}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                      fontSize: '11px', fontWeight: '500',
+                      padding: '4px 10px', borderRadius: '99px',
+                      background: display.bg, color: display.color,
+                    }}>
+                      <StatusIcon size={11} />
+                      {display.label}
+                    </span>
+                    <div style={{ display: 'flex', gap: '2px' }}>
+                      <IconActionButton
+                        icon={Users}
+                        tone="info"
+                        label="View split"
+                        onClick={() => setSplitModalBill(bill)}
+                        disabled={isLoading}
+                      />
+                      {bill.receiptUrl && <ReceiptViewButton billId={bill.id} />}
+                      {isOwner && (
+                        <>
+                          <IconActionButton
+                            icon={Pencil}
+                            tone="default"
+                            label="Edit"
+                            onClick={() => setEditingBill(bill)}
+                            disabled={isLoading}
+                          />
+                          <IconActionButton
+                            icon={Trash2}
+                            tone="danger"
+                            label="Delete"
+                            onClick={() => setPendingDeleteBill(bill)}
+                            disabled={isLoading}
+                          />
+                        </>
                       )}
-                    </p>
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      Due {format(new Date(bill.dueDate), 'MMM d, yyyy')} · {bill.category.name} · Added by {isOwner ? 'you' : creatorLabel}
-                    </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="bill-row-right">
-                  <span style={{
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    fontSize: '11px', fontWeight: '500',
-                    padding: '4px 10px', borderRadius: '99px',
-                    background: display.bg, color: display.color,
-                  }}>
-                    <StatusIcon size={11} />
-                    {display.label}
-                  </span>
-
-                  <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', textAlign: 'right' }}>
-                    ₱{display.paid.toLocaleString()}
-                    <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>
-                      /₱{display.total.toLocaleString()}
+                {/* progress bar */}
+                <div style={{ marginTop: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{display.pct}% paid</span>
+                    <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                      ₱{display.paid.toLocaleString()}
+                      <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>/₱{display.total.toLocaleString()}</span>
                     </span>
-                  </span>
+                  </div>
+                  <div style={{ background: 'var(--icon-bg)', borderRadius: '99px', height: '6px' }}>
+                    <div style={{
+                      height: '6px', borderRadius: '99px', width: `${display.pct}%`,
+                      background: display.color, transition: 'width 0.3s ease',
+                    }} />
+                  </div>
+                </div>
+
+                {/* member chips + your action */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {bill.splits.map(s => {
+                      const memberLabel = s.householdMember.name ?? s.householdMember.email.split('@')[0]
+                      const initials = memberLabel.slice(0, 2).toUpperCase()
+                      const isMe = s.householdMember.userId === currentUserId
+                      return (
+                        <div
+                          key={s.id}
+                          title={`${memberLabel} · ₱${s.amount.toLocaleString()} · ${s.isPaid ? 'Paid' : 'Unpaid'}`}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '5px',
+                            padding: '3px 9px 3px 3px', borderRadius: '99px',
+                            background: s.isPaid ? 'rgba(52,211,153,0.1)' : 'var(--bg-tertiary)',
+                            border: `0.5px solid ${s.isPaid ? 'rgba(52,211,153,0.35)' : 'var(--border)'}`,
+                          }}
+                        >
+                          <span style={{
+                            width: '18px', height: '18px', borderRadius: '50%',
+                            background: s.isPaid ? '#34d399' : 'var(--icon-bg)',
+                            color: s.isPaid ? '#0a0c10' : 'var(--text-muted)',
+                            fontSize: '8px', fontWeight: 700,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          }}>
+                            {initials}
+                          </span>
+                          <span style={{ fontSize: '10px', color: s.isPaid ? '#34d399' : 'var(--text-muted)', fontWeight: 500 }}>
+                            {isMe ? 'You' : memberLabel} · ₱{s.amount.toLocaleString()}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
 
                   {mySplit && (
                     mySplit.isPaid ? (
@@ -555,54 +739,25 @@ export default function HouseholdPageClient({
                         style={{
                           display: 'flex', alignItems: 'center', gap: '4px',
                           fontSize: '11px', fontWeight: '500',
-                          padding: '5px 10px', borderRadius: '99px', border: 'none',
+                          padding: '6px 12px', borderRadius: '8px', border: 'none',
                           background: 'rgba(52,211,153,0.12)', color: '#34d399',
                           cursor: mySplitLoading ? 'not-allowed' : 'pointer',
-                          opacity: mySplitLoading ? 0.6 : 1,
+                          opacity: mySplitLoading ? 0.6 : 1, flexShrink: 0,
                         }}
                       >
-                        <Check size={11} /> You paid ₱{mySplit.amount.toLocaleString()}
+                        <Check size={12} /> You paid ₱{mySplit.amount.toLocaleString()}
                       </button>
                     ) : (
                       <Button
                         size="sm"
                         onClick={() => toggleMySplit(bill, mySplit)}
                         disabled={mySplitLoading}
-                        style={{ background: '#34d399', color: '#0a0c10' }}
+                        style={{ background: '#34d399', color: '#0a0c10', flexShrink: 0 }}
                       >
                         {mySplitLoading ? 'Saving...' : `Mark my ₱${mySplit.amount.toLocaleString()} paid`}
                       </Button>
                     )
                   )}
-
-                  <div style={{ display: 'flex', gap: '2px' }}>
-                    <IconActionButton
-                      icon={Users}
-                      tone="info"
-                      label="View split"
-                      onClick={() => setSplitModalBill(bill)}
-                      disabled={isLoading}
-                    />
-                    {bill.receiptUrl && <ReceiptViewButton billId={bill.id} />}
-                    {isOwner && (
-                      <>
-                        <IconActionButton
-                          icon={Pencil}
-                          tone="default"
-                          label="Edit"
-                          onClick={() => setEditingBill(bill)}
-                          disabled={isLoading}
-                        />
-                        <IconActionButton
-                          icon={Trash2}
-                          tone="danger"
-                          label="Delete"
-                          onClick={() => setPendingDeleteBill(bill)}
-                          disabled={isLoading}
-                        />
-                      </>
-                    )}
-                  </div>
                 </div>
               </div>
             )

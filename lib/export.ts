@@ -359,3 +359,250 @@ export async function exportToPDF(
 
   doc.save(`${filename}-${format(now, 'yyyy-MM-dd')}.pdf`)
 }
+
+// ────────────────────────────────────────────────────────────────
+// Shared bills export — each bill's total is broken down by exactly
+// how much every household member owes/paid, mirroring what's shown
+// in the Shared Bills section of the app.
+// ────────────────────────────────────────────────────────────────
+
+export type SharedBillSplitExport = {
+  memberName: string
+  amount: number
+  isPaid: boolean
+  paidAt?: string | Date | null
+}
+
+export type SharedBillExport = {
+  title: string
+  categoryName: string
+  categoryColor?: string | null
+  dueDate: string | Date
+  amount: number
+  addedBy: string
+  splits: SharedBillSplitExport[]
+}
+
+type SharedDisplayLabel = 'PAID' | 'PENDING' | 'UNPAID' | 'OVERDUE'
+
+function getSharedBillDisplay(bill: SharedBillExport): { label: SharedDisplayLabel; paid: number } {
+  const paid = bill.splits.reduce((sum, s) => sum + (s.isPaid ? s.amount : 0), 0)
+  const isFullyPaid = bill.splits.length > 0 && bill.splits.every(s => s.isPaid)
+  if (isFullyPaid) return { label: 'PAID', paid }
+  if (paid > 0) return { label: 'PENDING', paid }
+  const isOverdue = new Date(bill.dueDate) < new Date(new Date().setHours(0, 0, 0, 0))
+  return { label: isOverdue ? 'OVERDUE' : 'UNPAID', paid }
+}
+
+const SHARED_STATUS_STYLES: Record<SharedDisplayLabel, { bg: [number, number, number]; text: [number, number, number] }> = {
+  PAID: { bg: [209, 250, 229], text: [4, 120, 87] },
+  PENDING: { bg: [219, 234, 254], text: [29, 78, 216] },
+  UNPAID: { bg: [254, 243, 199], text: [180, 83, 9] },
+  OVERDUE: { bg: [254, 226, 226], text: [185, 28, 28] },
+}
+
+export async function exportSharedBillsToPDF(
+  bills: SharedBillExport[],
+  householdName: string,
+  filename = 'shared-bills'
+): Promise<void> {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ])
+
+  const doc = new jsPDF()
+  const pageWidth = doc.internal.pageSize.width
+  const pageHeight = doc.internal.pageSize.height
+  const marginX = 14
+  const now = new Date()
+
+  await embedUnicodeFont(doc)
+
+  // Header
+  doc.setFillColor(15, 17, 23)
+  doc.rect(0, 0, pageWidth, 40, 'F')
+
+  doc.setFont(FONT_NAME, 'bold')
+  doc.setFontSize(22)
+  doc.setTextColor(255, 255, 255)
+  doc.text('Bill', marginX, 18)
+  const billWidth = doc.getTextWidth('Bill')
+  doc.setTextColor(59, 130, 246)
+  doc.text('ify', marginX + billWidth, 18)
+
+  doc.setFont(FONT_NAME, 'normal')
+  doc.setFontSize(10)
+  doc.setTextColor(180, 180, 180)
+  doc.text(`Shared Bills — ${householdName}`, marginX, 26)
+  doc.text(`Generated: ${format(now, 'MMMM d, yyyy')}`, marginX, 33)
+
+  // Summary bar
+  const totalAmount = bills.reduce((sum, b) => sum + b.amount, 0)
+  const totalPaid = bills.reduce((sum, b) => sum + getSharedBillDisplay(b).paid, 0)
+  const totalPending = Math.max(totalAmount - totalPaid, 0)
+  const fullySettled = bills.filter(b => getSharedBillDisplay(b).label === 'PAID').length
+
+  doc.setFillColor(22, 27, 39)
+  doc.rect(0, 40, pageWidth, 24, 'F')
+
+  doc.setFont(FONT_NAME, 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor(150, 150, 150)
+  doc.text('TOTAL SHARED', marginX, 48)
+  doc.text('TOTAL PAID', 82, 48)
+  doc.text('TOTAL PENDING', 116, 48)
+  doc.text('SETTLED', 160, 48)
+
+  doc.setFont(FONT_NAME, 'bold')
+  doc.setFontSize(13)
+  doc.setTextColor(255, 255, 255)
+  doc.text(`₱${totalAmount.toLocaleString()}`, marginX, 58)
+  doc.text(`₱${totalPaid.toLocaleString()}`, 82, 58)
+  doc.text(`₱${totalPending.toLocaleString()}`, 116, 58)
+  doc.text(`${fullySettled}/${bills.length}`, 160, 58)
+
+  let cursorY = 76
+
+  const ensureSpace = (needed: number) => {
+    if (cursorY + needed > pageHeight - 20) {
+      doc.addPage()
+      cursorY = 20
+    }
+  }
+
+  if (bills.length === 0) {
+    doc.setFont(FONT_NAME, 'normal')
+    doc.setFontSize(11)
+    doc.setTextColor(120, 120, 120)
+    doc.text('No shared bills yet.', marginX, cursorY + 10)
+    cursorY += 20
+  }
+
+  bills.forEach(bill => {
+    ensureSpace(28)
+
+    const display = getSharedBillDisplay(bill)
+    const style = SHARED_STATUS_STYLES[display.label]
+    const [cr, cg, cb] = hexToRgb(bill.categoryColor)
+
+    // Bill header bar
+    doc.setFillColor(245, 247, 255)
+    doc.rect(marginX, cursorY, pageWidth - marginX * 2, 10, 'F')
+    doc.setFillColor(cr, cg, cb)
+    doc.circle(marginX + 5, cursorY + 5, 2.2, 'F')
+
+    doc.setFont(FONT_NAME, 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(30, 30, 30)
+    doc.text(bill.title, marginX + 11, cursorY + 6.5)
+    const titleWidth = doc.getTextWidth(bill.title)
+
+    doc.setFont(FONT_NAME, 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(120, 120, 120)
+    doc.text(
+      `${bill.categoryName} · Due ${format(new Date(bill.dueDate), 'MMM d, yyyy')} · Added by ${bill.addedBy}`,
+      marginX + 11 + titleWidth + 4,
+      cursorY + 6.5
+    )
+
+    // Status pill
+    doc.setFont(FONT_NAME, 'bold')
+    doc.setFontSize(7.5)
+    const label = display.label
+    const textW = doc.getTextWidth(label)
+    const pillW = textW + 6
+    const pillH = 5.5
+    const pillX = pageWidth - marginX - pillW - 34
+    const pillY = cursorY + (10 - pillH) / 2
+    doc.setFillColor(...style.bg)
+    doc.roundedRect(pillX, pillY, pillW, pillH, 1.5, 1.5, 'F')
+    doc.setTextColor(...style.text)
+    doc.text(label, pillX + pillW / 2, pillY + pillH / 2 + 2.6, { align: 'center' })
+
+    // Paid/total amount
+    doc.setFont(FONT_NAME, 'bold')
+    doc.setFontSize(9.5)
+    doc.setTextColor(30, 30, 30)
+    doc.text(
+      `₱${display.paid.toLocaleString()}/₱${bill.amount.toLocaleString()}`,
+      pageWidth - marginX - 2,
+      cursorY + 6.5,
+      { align: 'right' }
+    )
+
+    cursorY += 13
+
+    // Per-member contribution breakdown
+    const body = bill.splits.map(s => [
+      s.memberName,
+      `₱${s.amount.toLocaleString()}`,
+      '',
+      s.isPaid && s.paidAt ? format(new Date(s.paidAt), 'MMM d, yyyy') : '—',
+    ])
+
+    autoTable(doc, {
+      startY: cursorY,
+      margin: { left: marginX, right: marginX },
+      head: [['Member', 'Contribution', 'Status', 'Paid On']],
+      body,
+      styles: {
+        font: FONT_NAME,
+        fontSize: 9,
+        textColor: [30, 30, 30],
+        cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 },
+      },
+      headStyles: {
+        fillColor: [241, 245, 249],
+        textColor: [71, 85, 105],
+        fontStyle: 'bold',
+        fontSize: 8,
+        halign: 'left',
+      },
+      alternateRowStyles: { fillColor: [250, 251, 253] },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 32, halign: 'right' },
+        2: { cellWidth: 26, halign: 'center' },
+        3: { cellWidth: 34, halign: 'center' },
+      },
+      didDrawCell: data => {
+        if (data.section !== 'body' || data.column.index !== 2) return
+        const split = bill.splits[data.row.index]
+        if (!split) return
+        const s = split.isPaid ? SHARED_STATUS_STYLES.PAID : SHARED_STATUS_STYLES.UNPAID
+        const label = split.isPaid ? 'Paid' : 'Unpaid'
+        doc.setFont(FONT_NAME, 'bold')
+        doc.setFontSize(7.5)
+        const textW = doc.getTextWidth(label)
+        const pillW = textW + 6
+        const pillH = 5.5
+        const px = data.cell.x + (data.cell.width - pillW) / 2
+        const py = data.cell.y + (data.cell.height - pillH) / 2
+        doc.setFillColor(...s.bg)
+        doc.roundedRect(px, py, pillW, pillH, 1.5, 1.5, 'F')
+        doc.setTextColor(...s.text)
+        doc.text(label, px + pillW / 2, py + pillH / 2 + 2.6, { align: 'center' })
+      },
+    })
+
+    cursorY = (doc as any).lastAutoTable.finalY + 8
+  })
+
+  const pageCount = (doc as any).internal.getNumberOfPages()
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i)
+    doc.setFont(FONT_NAME, 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(150, 150, 150)
+    doc.text(
+      `Page ${i} of ${pageCount} — Billify`,
+      pageWidth / 2,
+      pageHeight - 8,
+      { align: 'center' }
+    )
+  }
+
+  doc.save(`${filename}-${format(now, 'yyyy-MM-dd')}.pdf`)
+}
