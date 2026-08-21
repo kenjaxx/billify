@@ -1,7 +1,8 @@
 // components/bills/PaymentMethodSelect.tsx
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, ChevronDown, X } from 'lucide-react'
 import { PAYMENT_METHODS, getPaymentMethodMeta } from '@/lib/payment-methods'
 import type { PaymentMethod } from '@/lib/payment-method-values'
@@ -20,18 +21,78 @@ export default function PaymentMethodSelect({
   placeholder?: string
 }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
+  const [mounted, setMounted] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const selected = getPaymentMethodMeta(value)
   const isCompact = variant === 'compact'
   const SelectedIcon = selected?.icon
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+  // Portals need a browser document — guard for SSR.
+  useEffect(() => setMounted(true), [])
+
+  const updatePosition = () => {
+    const trigger = triggerRef.current
+    if (!trigger) return
+    const rect = trigger.getBoundingClientRect()
+    const menuWidth = isCompact ? 200 : rect.width
+
+    // Align right edge of menu with right edge of trigger for compact
+    // (list row) variant, left edge for full-width form variant.
+    let left = isCompact ? rect.right - menuWidth : rect.left
+    left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8))
+
+    let top = rect.bottom + 6
+    const estimatedHeight = 300
+    // Flip above the trigger if there isn't room below the viewport —
+    // this is what was invisible before: it was rendering below the
+    // last row, past the bottom of a clipped, overflow:hidden container.
+    if (top + estimatedHeight > window.innerHeight && rect.top > estimatedHeight) {
+      top = rect.top - estimatedHeight - 6
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
+
+    setMenuStyle({
+      position: 'fixed',
+      top,
+      left,
+      width: isCompact ? 'max-content' : rect.width,
+      minWidth: isCompact ? '180px' : rect.width,
+      maxWidth: isCompact ? '260px' : undefined,
+    })
+  }
+
+  useLayoutEffect(() => {
+    if (!open) return
+    updatePosition()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node
+      const clickedTrigger = triggerRef.current?.contains(target)
+      const clickedMenu = menuRef.current?.contains(target)
+      if (!clickedTrigger && !clickedMenu) setOpen(false)
+    }
+    const handleReposition = () => updatePosition()
+    // Simplest reliable behavior when the page/table scrolls: close the
+    // menu rather than try to track every possible scroll container.
+    const handleScroll = () => setOpen(false)
+
+    document.addEventListener('mousedown', handleClickOutside)
+    window.addEventListener('resize', handleReposition)
+    window.addEventListener('scroll', handleScroll, true)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('resize', handleReposition)
+      window.removeEventListener('scroll', handleScroll, true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   const handleSelect = (method: PaymentMethod | null) => {
     onChange(method)
@@ -39,8 +100,9 @@ export default function PaymentMethodSelect({
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'inline-block', width: isCompact ? 'auto' : '100%' }}>
+    <div style={{ position: 'relative', display: 'inline-block', width: isCompact ? 'auto' : '100%' }}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => !disabled && setOpen(o => !o)}
         disabled={disabled}
@@ -75,21 +137,20 @@ export default function PaymentMethodSelect({
         }} />
       </button>
 
-      {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 6px)',
-          left: isCompact ? 'auto' : 0,
-          right: isCompact ? 0 : 'auto',
-          minWidth: isCompact ? '180px' : '100%',
-          width: isCompact ? 'max-content' : '100%',
-          background: 'var(--bg-card)',
-          border: '0.5px solid var(--border)',
-          borderRadius: '10px',
-          boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
-          overflow: 'hidden',
-          zIndex: 40,
-          animation: 'dropIn 0.12s ease',
-        }}>
+      {open && mounted && createPortal(
+        <div
+          ref={menuRef}
+          style={{
+            ...menuStyle,
+            background: 'var(--bg-card)',
+            border: '0.5px solid var(--border)',
+            borderRadius: '10px',
+            boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
+            overflow: 'hidden',
+            zIndex: 1000,
+            animation: 'dropIn 0.12s ease',
+          }}
+        >
           <div style={{ padding: '4px', maxHeight: '260px', overflowY: 'auto' }}>
             <button type="button" onClick={() => handleSelect(null)} style={optionStyle(value === null)}>
               <X size={13} color="var(--text-muted)" />
@@ -117,7 +178,8 @@ export default function PaymentMethodSelect({
               )
             })}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
