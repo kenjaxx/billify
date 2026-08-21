@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, startOfWeek, endOfWeek } from 'date-fns'
 
 type Bill = {
@@ -24,11 +24,44 @@ export default function BillCalendar() {
   const [bills, setBills] = useState<Bill[]>([])
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch('/api/bills')
-      .then(r => r.json())
-      .then(data => { setBills(data); setLoading(false) })
+    let cancelled = false
+
+    const loadBills = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const res = await fetch('/api/bills')
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok) {
+          throw new Error((data && data.error) || 'Failed to load bills')
+        }
+
+        // The API is expected to return an array of bills. If it ever
+        // returns something else (e.g. an error object slipped through,
+        // or a malformed response), fall back to an empty array instead
+        // of storing a non-array in state — that's what was crashing
+        // getBillsForDay's bills.filter(...) below.
+        if (!Array.isArray(data)) {
+          throw new Error('Unexpected response while loading bills')
+        }
+
+        if (!cancelled) setBills(data)
+      } catch (err) {
+        if (!cancelled) {
+          setBills([])
+          setError(err instanceof Error ? err.message : 'Could not load bills.')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    loadBills()
+    return () => { cancelled = true }
   }, [])
 
   const monthStart = startOfMonth(currentDate)
@@ -104,6 +137,39 @@ export default function BillCalendar() {
             borderTop: '2px solid #3b82f6',
             borderRadius: '50%', animation: 'spin 0.7s linear infinite',
           }} />
+        </div>
+      ) : error ? (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
+          padding: '32px 16px', textAlign: 'center',
+        }}>
+          <AlertCircle size={20} color="#f87171" />
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{error}</p>
+          <button
+            onClick={() => {
+              // simplest reliable retry — re-trigger the effect by forcing
+              // a fresh mount cycle via currentDate identity, or just reload
+              setCurrentDate(d => new Date(d))
+              setLoading(true)
+              setError('')
+              fetch('/api/bills')
+                .then(async r => {
+                  const data = await r.json().catch(() => null)
+                  if (!r.ok || !Array.isArray(data)) {
+                    throw new Error((data && data.error) || 'Failed to load bills')
+                  }
+                  setBills(data)
+                })
+                .catch(err => setError(err instanceof Error ? err.message : 'Could not load bills.'))
+                .finally(() => setLoading(false))
+            }}
+            style={{
+              fontSize: '12px', color: '#60a5fa', background: 'none',
+              border: 'none', cursor: 'pointer', padding: '4px 8px',
+            }}
+          >
+            Try again
+          </button>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
@@ -187,14 +253,16 @@ export default function BillCalendar() {
       )}
 
       {/* Legend */}
-      <div style={{ display: 'flex', gap: '12px', marginTop: '12px', justifyContent: 'center' }}>
-        {[['PAID', '#34d399', 'Paid'], ['UNPAID', '#fbbf24', 'Unpaid'], ['OVERDUE', '#f87171', 'Overdue']].map(([, color, label]) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: color }} />
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{label}</span>
-          </div>
-        ))}
-      </div>
+      {!loading && !error && (
+        <div style={{ display: 'flex', gap: '12px', marginTop: '12px', justifyContent: 'center' }}>
+          {[['PAID', '#34d399', 'Paid'], ['UNPAID', '#fbbf24', 'Unpaid'], ['OVERDUE', '#f87171', 'Overdue']].map(([, color, label]) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: color }} />
+              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Selected day bills */}
       {selectedDay && selectedBills.length > 0 && (
