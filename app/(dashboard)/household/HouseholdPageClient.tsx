@@ -385,14 +385,15 @@ export default function HouseholdPageClient({
             description="Create a household to start inviting a partner or roommate and splitting bills together."
           />
           <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-            <input
-              type="text"
-              placeholder="e.g. Our Apartment"
-              value={householdName}
-              onChange={e => setHouseholdName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCreateHousehold()}
-              style={inputStyle}
-            />
+           <input
+  type="text"
+  placeholder="e.g. Our Apartment"
+  value={householdName}
+  onChange={e => setHouseholdName(e.target.value)}
+  onKeyDown={e => e.key === 'Enter' && handleCreateHousehold()}
+  className="glow-input"
+  style={inputStyle}
+/>
             <Button onClick={handleCreateHousehold} disabled={creating || !householdName.trim()}>
               {creating ? 'Creating...' : 'Create'}
             </Button>
@@ -447,14 +448,15 @@ export default function HouseholdPageClient({
             Invite someone
           </h2>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <input
-              type="email"
-              placeholder="partner@email.com"
-              value={inviteEmail}
-              onChange={e => setInviteEmail(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleInvite()}
-              style={inputStyle}
-            />
+           <input
+  type="email"
+  placeholder="partner@email.com"
+  value={inviteEmail}
+  onChange={e => setInviteEmail(e.target.value)}
+  onKeyDown={e => e.key === 'Enter' && handleInvite()}
+  className="glow-input"
+  style={inputStyle}
+/>
             <Button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}>
               <UserPlus size={14} />
               {inviting ? 'Sending...' : 'Send invite'}

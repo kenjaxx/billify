@@ -344,21 +344,22 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
       {/* Search / sort / date range / payment filter toolbar */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
-          <Search size={13} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input
-            type="text"
-            placeholder="Search bills..."
-            aria-label="Search bills"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              width: '100%', background: 'var(--bg-input)',
-              border: '0.5px solid var(--border-input)',
-              borderRadius: '8px', padding: '8px 10px 8px 30px',
-              fontSize: '12px', color: 'var(--text-primary)', outline: 'none',
-            }}
-          />
-        </div>
+  <Search size={13} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+  <input
+    type="text"
+    placeholder="Search bills..."
+    aria-label="Search bills"
+    value={search}
+    onChange={e => setSearch(e.target.value)}
+    className="glow-input"
+    style={{
+      width: '100%',
+      padding: '8px 10px 8px 30px',
+      fontSize: '12px',
+      outline: 'none',
+    }}
+  />
+</div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <ArrowUpDown size={13} color="var(--text-muted)" />
