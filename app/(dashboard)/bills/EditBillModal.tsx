@@ -1,4 +1,4 @@
-// app/(dashboard)/bills/EditBillModal.tsx — full replacement
+// app/(dashboard)/bills/EditBillModal.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 import ReceiptUpload from '@/components/bills/ReceiptUpload'
 import PaymentMethodSelect from '@/components/bills/PaymentMethodSelect'
+import SplitBillSection, { type SplitEntry } from '@/components/bills/SplitBillSection'
 import type { PaymentMethod } from '@/lib/payment-method-values'
 
 type Category = { id: string; name: string; icon: string | null }
@@ -25,6 +26,11 @@ type Bill = {
   receiptUrl?: string | null
   receiptName?: string | null
   paymentMethod?: string | null
+  splits?: {
+    id: string
+    amount: number
+    householdMember: { id: string; userId: string | null; name: string | null; email: string }
+  }[]
 }
 
 const inputStyle: React.CSSProperties = {
@@ -53,6 +59,9 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [splitEnabled, setSplitEnabled] = useState(false)
+  const [splits, setSplits] = useState<SplitEntry[]>([])
   const { theme } = useTheme()
   const [form, setForm] = useState({
     title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: '',
@@ -64,7 +73,10 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
 
   useEffect(() => {
     if (!bill) return
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null))
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id ?? null)
+      setUserEmail(data.user?.email ?? null)
+    })
     fetch('/api/categories').then(r => r.json()).then(setCategories)
     setForm({
       title: bill.title,
@@ -77,10 +89,22 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
       receiptName: bill.receiptName ?? null,
       paymentMethod: (bill.paymentMethod as PaymentMethod | null) ?? null,
     })
+    const existingSplits = bill.splits ?? []
+    setSplitEnabled(existingSplits.length > 0)
+    setSplits(existingSplits.map(s => ({ householdMemberId: s.householdMember.id, amount: s.amount })))
   }, [bill])
 
   const handleSubmit = async () => {
     if (!bill || !form.title || !form.amount || !form.categoryId || !form.dueDate) return
+
+    if (splitEnabled) {
+      const total = splits.reduce((sum, s) => sum + s.amount, 0)
+      if (Math.abs(total - parseFloat(form.amount)) > 1) {
+        toast.error('Split amounts must add up to the bill total.')
+        return
+      }
+    }
+
     setLoading(true)
     try {
       const res = await fetch(`/api/bills/${bill.id}`, {
@@ -100,6 +124,26 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to update bill')
+
+      const hadSplitsBefore = (bill.splits?.length ?? 0) > 0
+      if (splitEnabled && splits.length > 0) {
+        const splitRes = await fetch(`/api/bills/${bill.id}/splits`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ splits }),
+        })
+        if (!splitRes.ok) {
+          const splitData = await splitRes.json().catch(() => ({}))
+          toast.error(splitData.error ?? 'Bill updated, but the split could not be saved.')
+        }
+      } else if (!splitEnabled && hadSplitsBefore) {
+        await fetch(`/api/bills/${bill.id}/splits`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ splits: [] }),
+        })
+      }
+
       onSuccess()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update bill.')
@@ -151,6 +195,14 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
               onChange={pm => setForm(p => ({ ...p, paymentMethod: pm }))}
             />
           </div>
+          <SplitBillSection
+            billAmount={parseFloat(form.amount) || 0}
+            enabled={splitEnabled}
+            onToggle={setSplitEnabled}
+            splits={splits}
+            onSplitsChange={setSplits}
+            currentUserEmail={userEmail}
+          />
           <div>
             <label style={labelStyle}>Notes (optional)</label>
             <textarea value={form.notes} rows={2}

@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user }, error } = await supabase.auth.getUser()
 
-  const protectedRoutes = ['/dashboard', '/bills', '/budgets', '/reports', '/settings', '/categories']
+  const protectedRoutes = ['/dashboard', '/bills', '/budgets', '/reports', '/settings', '/categories', '/household']
   const authRoutes = ['/login', '/register']
   // Public routes that must NEVER be redirected away, even without a session —
   // the reset-password page needs to load first so it can exchange the

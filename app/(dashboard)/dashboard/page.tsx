@@ -7,6 +7,7 @@ import InsightsWidget from './InsightsWidget'
 import DashboardPeriodSelector from './DashboardPeriodSelector'
 import { TrendBadge } from '@/components/ui/trend-badge'
 import { EmptyState } from '@/components/ui/empty-state'
+import HouseholdBalanceWidget from './HouseholdBalanceWidget'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -121,6 +122,9 @@ export default async function DashboardPage({
         </div>
         <DashboardPeriodSelector period={resolved.period} month={resolved.month} year={resolved.year} />
       </div>
+
+
+      <HouseholdBalanceWidget currentUserId={user.id} />
 
       <div className="stat-grid" style={{ marginBottom: '20px' }}>
         {statCards.map(({ label, value, icon: Icon, color, bg, trend }) => (

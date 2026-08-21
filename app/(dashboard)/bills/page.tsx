@@ -13,7 +13,10 @@ export default async function BillsPage() {
 
   const bills = await prisma.bill.findMany({
     where: { userId: user.id },
-    include: { category: true },
+    include: {
+      category: true,
+      splits: { include: { householdMember: true } },
+    },
     orderBy: { dueDate: 'asc' },
   })
 
@@ -29,6 +32,17 @@ export default async function BillsPage() {
     receiptUrl: b.receiptUrl,
     paymentMethod: b.paymentMethod,
     category: { name: b.category.name, icon: b.category.icon, color: b.category.color },
+    splits: b.splits.map(s => ({
+      id: s.id,
+      amount: s.amount,
+      isPaid: s.isPaid,
+      householdMember: {
+        id: s.householdMember.id,
+        userId: s.householdMember.userId,
+        name: s.householdMember.name,
+        email: s.householdMember.email,
+      },
+    })),
   }))
 
   return <BillsPageClient initialBills={initialBills} />

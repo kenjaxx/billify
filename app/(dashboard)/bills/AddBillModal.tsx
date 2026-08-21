@@ -11,6 +11,7 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 import ReceiptUpload from '@/components/bills/ReceiptUpload'
 import ReceiptItemsReview from '@/components/bills/ReceiptItemsReview'
 import PaymentMethodSelect from '@/components/bills/PaymentMethodSelect'
+import SplitBillSection, { type SplitEntry } from '@/components/bills/SplitBillSection'
 import type { PaymentMethod } from '@/lib/payment-method-values'
 
 type Category = { id: string; name: string; icon: string | null }
@@ -51,10 +52,13 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
   const [catError, setCatError] = useState('')
   const [loading, setLoading] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [tempBillId, setTempBillId] = useState('')
   const [autoFilled, setAutoFilled] = useState(false)
   const [multiItems, setMultiItems] = useState<ParsedItem[] | null>(null)
   const [multiReceipt, setMultiReceipt] = useState<{ url: string; name: string } | null>(null)
+  const [splitEnabled, setSplitEnabled] = useState(false)
+  const [splits, setSplits] = useState<SplitEntry[]>([])
   const { theme } = useTheme()
   const [form, setForm] = useState({
     title: '', amount: '', categoryId: '', dueDate: '', isRecurring: false, notes: '',
@@ -66,7 +70,10 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
 
   useEffect(() => {
     if (!isOpen) return
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null))
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id ?? null)
+      setUserEmail(data.user?.email ?? null)
+    })
     setTempBillId(crypto.randomUUID())
     setCatLoading(true)
     setCatError('')
@@ -156,6 +163,15 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
 
   const handleSubmit = async () => {
     if (!form.title || !form.amount || !form.categoryId || !form.dueDate) return
+
+    if (splitEnabled) {
+      const total = splits.reduce((sum, s) => sum + s.amount, 0)
+      if (Math.abs(total - parseFloat(form.amount)) > 1) {
+        toast.error('Split amounts must add up to the bill total.')
+        return
+      }
+    }
+
     setLoading(true)
     try {
       const res = await fetch('/api/bills', {
@@ -163,10 +179,21 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, amount: parseFloat(form.amount) }),
       })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error ?? 'Failed to add bill')
+      const bill = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(bill.error ?? 'Failed to add bill')
+
+      if (splitEnabled && splits.length > 0 && bill.id) {
+        const splitRes = await fetch(`/api/bills/${bill.id}/splits`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ splits }),
+        })
+        if (!splitRes.ok) {
+          const splitData = await splitRes.json().catch(() => ({}))
+          toast.error(splitData.error ?? 'Bill added, but the split could not be saved.')
+        }
       }
+
       resetForm()
       toast.success('Bill added.')
       onSuccess()
@@ -186,6 +213,8 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
     setAutoFilled(false)
     setMultiItems(null)
     setMultiReceipt(null)
+    setSplitEnabled(false)
+    setSplits([])
     setMode('ai')
   }
 
@@ -358,6 +387,14 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
                 onChange={pm => setForm(p => ({ ...p, paymentMethod: pm }))}
               />
             </div>
+            <SplitBillSection
+              billAmount={parseFloat(form.amount) || 0}
+              enabled={splitEnabled}
+              onToggle={setSplitEnabled}
+              splits={splits}
+              onSplitsChange={setSplits}
+              currentUserEmail={userEmail}
+            />
             <div>
               <label style={labelStyle}>Notes (optional)</label>
               <textarea placeholder="Any additional notes..." value={form.notes} rows={2}

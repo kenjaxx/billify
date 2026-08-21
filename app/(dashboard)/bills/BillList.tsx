@@ -6,7 +6,7 @@ import useSWR from 'swr'
 import { useRouter } from 'next/navigation'
 import {
   FileText, CheckCircle, AlertCircle, Clock, Trash2, CheckCheck,
-  Pencil, Search, ArrowUpDown, CalendarDays, Loader2, Wallet,
+  Pencil, Search, ArrowUpDown, CalendarDays, Loader2, Wallet, Users,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -22,8 +22,16 @@ import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useTheme } from '@/lib/theme-context'
 import ReceiptViewButton from '@/components/bills/ReceiptViewButton'
 import PaymentMethodSelect from '@/components/bills/PaymentMethodSelect'
+import SplitDetailsModal from '@/components/bills/SplitDetailsModal'
 import { PAYMENT_METHODS, getPaymentMethodMeta } from '@/lib/payment-methods'
 import type { PaymentMethod } from '@/lib/payment-method-values'
+
+type Split = {
+  id: string
+  amount: number
+  isPaid: boolean
+  householdMember: { id: string; userId: string | null; name: string | null; email: string }
+}
 
 type Bill = {
   id: string
@@ -37,6 +45,7 @@ type Bill = {
   receiptUrl: string | null
   paymentMethod: string | null
   category: { name: string; icon: string | null; color: string | null }
+  splits: Split[]
 }
 
 const statusConfig = {
@@ -83,6 +92,7 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
   const [filter, setFilter] = useState<typeof filters[number]>('ALL')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [editingBill, setEditingBill] = useState<Bill | null>(null)
+  const [splitModalBill, setSplitModalBill] = useState<Bill | null>(null)
 
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebouncedValue(search, 300)
@@ -551,6 +561,15 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
                             RECURRING
                           </span>
                         )}
+                        {bill.splits.length > 0 && (
+                          <span style={{
+                            marginLeft: '6px', fontSize: '9px', fontWeight: '600',
+                            color: '#a78bfa', background: 'rgba(167,139,250,0.12)',
+                            padding: '1px 6px', borderRadius: '99px',
+                          }}>
+                            SPLIT
+                          </span>
+                        )}
                       </p>
                       <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                         Due {format(new Date(bill.dueDate), 'MMM d, yyyy')} · {bill.category.name}
@@ -588,6 +607,15 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
                           disabled={isLoading}
                         />
                       )}
+                      {bill.splits.length > 0 && (
+                        <IconActionButton
+                          icon={Users}
+                          tone="info"
+                          label="View split"
+                          onClick={() => setSplitModalBill(bill)}
+                          disabled={isLoading}
+                        />
+                      )}
                       {bill.receiptUrl && <ReceiptViewButton billId={bill.id} />}
                       <IconActionButton
                         icon={Pencil}
@@ -617,6 +645,18 @@ export default function BillList({ refresh, initialBills }: { refresh: number; i
         onClose={() => setEditingBill(null)}
         onSuccess={() => { setEditingBill(null); toast.success('Bill updated.'); mutate(); router.refresh() }}
       />
+
+      {splitModalBill && (
+        <SplitDetailsModal
+          billId={splitModalBill.id}
+          billTitle={splitModalBill.title}
+          splits={splitModalBill.splits}
+          currentUserId={null}
+          canManage
+          onClose={() => setSplitModalBill(null)}
+          onUpdated={() => mutate()}
+        />
+      )}
 
       <ConfirmDialog
         open={pendingDelete !== null}

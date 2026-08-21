@@ -19,6 +19,12 @@ type Bill = {
   receiptUrl: string | null
   paymentMethod: string | null
   category: { name: string; icon: string | null; color: string | null }
+  splits: {
+    id: string
+    amount: number
+    isPaid: boolean
+    householdMember: { id: string; userId: string | null; name: string | null; email: string }
+  }[]
 }
 
 export default function BillsPageClient({ initialBills }: { initialBills: Bill[] }) {
@@ -27,8 +33,6 @@ export default function BillsPageClient({ initialBills }: { initialBills: Bill[]
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [refresh, setRefresh] = useState(0)
 
-  // Lets the mobile FAB (or any other "add bill" shortcut) deep-link
-  // straight into the modal via /bills?add=1
   useEffect(() => {
     if (searchParams.get('add') === '1') {
       setIsModalOpen(true)
@@ -39,8 +43,6 @@ export default function BillsPageClient({ initialBills }: { initialBills: Bill[]
   const handleBillAdded = () => {
     setRefresh(prev => prev + 1)
     setIsModalOpen(false)
-    // Bust the Next.js router cache for other routes (Dashboard, Reports)
-    // so a newly added bill shows up immediately when you navigate there.
     router.refresh()
   }
 

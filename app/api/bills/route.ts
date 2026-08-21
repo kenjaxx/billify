@@ -11,7 +11,10 @@ export async function GET() {
 
     const bills = await prisma.bill.findMany({
       where: { userId: user.id },
-      include: { category: true },
+      include: {
+        category: true,
+        splits: { include: { householdMember: true } },
+      },
       orderBy: { dueDate: 'asc' },
     })
     return NextResponse.json(bills)
