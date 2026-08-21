@@ -19,7 +19,7 @@ const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Bills', href: '/bills', icon: FileText },
   { label: 'Budgets', href: '/budgets', icon: Wallet },
-  { label: 'Household', href: '/household', icon: Users },
+  { label: 'Shared Bills', href: '/household', icon: Users },
   { label: 'Reports', href: '/reports', icon: BarChart2 },
   { label: 'Categories', href: '/categories', icon: Tags },
 ]
