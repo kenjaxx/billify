@@ -20,6 +20,9 @@ model User {
 
   ownedHouseholds       Household[]
   householdMemberships  HouseholdMember[]
+
+  monthlyBudgets MonthlyBudget[]
+  savingsGoals   SavingsGoal[]
 }
 
 model Category {
@@ -80,6 +83,38 @@ model Budget {
 
   @@index([userId, month, year])
   @@index([categoryId])
+}
+
+model MonthlyBudget {
+  id             String   @id @default(uuid())
+  userId         String
+  month          Int
+  year           Int
+  amount         Float
+  rollover       Boolean  @default(false)
+  rolledOverFrom Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month, year])
+  @@index([userId, year, month])
+}
+
+
+model SavingsGoal {
+  id           String   @id @default(uuid())
+  userId       String
+  name         String
+  targetAmount Float
+  savedAmount  Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model AiRequestLog {

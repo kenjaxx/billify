@@ -3,10 +3,15 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import { useRouter } from 'next/navigation'
-import { Plus, Wallet, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Wallet, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import { IconActionButton } from '@/components/ui/icon-action-button'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 import SetBudgetModal from '@/components/budgets/SetBudgetModal'
+import TotalBudgetCard from '@/components/budgets/TotalBudgetCard'
+import SavingsGoalsSection from '@/components/budgets/SavingsGoalsSection'
 import { fetcher } from '@/lib/swr-fetcher'
 
 type Budget = {
@@ -31,6 +36,9 @@ export default function BudgetsPageClient({
   const router = useRouter()
   const [viewDate, setViewDate] = useState({ month: initialMonth, year: initialYear })
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Budget | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const isInitialMonth = viewDate.month === initialMonth && viewDate.year === initialYear
 
@@ -42,6 +50,15 @@ export default function BudgetsPageClient({
     `/api/budgets?month=${viewDate.month}&year=${viewDate.year}`,
     fetcher,
     { fallbackData: isInitialMonth ? initialBudgets : undefined }
+  )
+
+  // Same cache key TotalBudgetCard uses internally, so this piggybacks
+  // on SWR's deduping instead of firing a second network request — we
+  // only need `remaining` here, to tell SavingsGoalsSection how much is
+  // available to allocate toward a goal this month.
+  const { data: monthlyBudget } = useSWR<{ remaining: number }>(
+    `/api/monthly-budget?month=${viewDate.month}&year=${viewDate.year}`,
+    fetcher
   )
 
   const loading = budgetsLoading && budgets.length === 0
@@ -67,6 +84,23 @@ export default function BudgetsPageClient({
 
   const now = new Date()
   const isCurrentMonth = viewDate.month === now.getMonth() + 1 && viewDate.year === now.getFullYear()
+
+  const confirmDeleteBudget = async () => {
+    if (!pendingDelete) return
+    setDeleteLoading(true)
+    try {
+      const res = await fetch(`/api/budgets/${pendingDelete.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      toast.success(`Budget for "${pendingDelete.category.name}" deleted.`)
+      await mutateBudgets()
+      router.refresh()
+    } catch {
+      toast.error('Could not delete budget.')
+    } finally {
+      setDeleteLoading(false)
+      setPendingDelete(null)
+    }
+  }
 
   return (
     <div style={{ maxWidth: '700px', margin: '0 auto' }}>
@@ -114,6 +148,13 @@ export default function BudgetsPageClient({
         </button>
       </div>
 
+      {/* Total monthly budget — deducted by personal bills + your own
+          share of household/shared bills — with savings and rollover. */}
+      <TotalBudgetCard month={viewDate.month} year={viewDate.year} />
+
+      {/* Savings goals — leftover budget can be manually allocated here. */}
+      <SavingsGoalsSection availableToAllocate={Math.max(monthlyBudget?.remaining ?? 0, 0)} />
+
       <div style={{
         background: 'var(--bg-card)',
         border: '0.5px solid var(--border)',
@@ -144,20 +185,36 @@ export default function BudgetsPageClient({
                 padding: '18px 20px',
                 borderBottom: i < budgets.length - 1 ? '0.5px solid var(--border)' : 'none',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '10px', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '18px' }}>{budget.category.icon ?? '📄'}</span>
                     <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>
                       {budget.category.name}
                     </span>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>
-                      ₱{spent.toLocaleString()}
-                    </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      {' '}/ ₱{budget.amount.toLocaleString()}
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                        ₱{spent.toLocaleString()}
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        {' '}/ ₱{budget.amount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '2px' }}>
+                      <IconActionButton
+                        icon={Pencil}
+                        tone="default"
+                        label={`Edit budget for ${budget.category.name}`}
+                        onClick={() => setEditingBudget(budget)}
+                      />
+                      <IconActionButton
+                        icon={Trash2}
+                        tone="danger"
+                        label={`Delete budget for ${budget.category.name}`}
+                        onClick={() => setPendingDelete(budget)}
+                      />
+                    </div>
                   </div>
                 </div>
                 <div style={{ background: 'var(--icon-bg)', borderRadius: '99px', height: '6px' }}>
@@ -185,6 +242,36 @@ export default function BudgetsPageClient({
         onSuccess={() => { mutateBudgets(); setIsModalOpen(false); router.refresh() }}
         month={viewDate.month}
         year={viewDate.year}
+      />
+
+      <SetBudgetModal
+        isOpen={editingBudget !== null}
+        onClose={() => setEditingBudget(null)}
+        onSuccess={() => {
+          mutateBudgets()
+          setEditingBudget(null)
+          toast.success('Budget updated.')
+          router.refresh()
+        }}
+        month={viewDate.month}
+        year={viewDate.year}
+        editBudget={editingBudget ? {
+          id: editingBudget.id,
+          categoryId: editingBudget.category.id,
+          categoryName: editingBudget.category.name,
+          categoryIcon: editingBudget.category.icon,
+          amount: editingBudget.amount,
+        } : null}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete this budget?"
+        description={`The spending limit for "${pendingDelete?.category.name ?? ''}" will be removed. This cannot be undone.`}
+        confirmLabel="Delete"
+        loading={deleteLoading}
+        onConfirm={confirmDeleteBudget}
+        onCancel={() => setPendingDelete(null)}
       />
     </div>
   )
