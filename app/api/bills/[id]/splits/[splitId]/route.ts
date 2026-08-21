@@ -33,6 +33,26 @@ export async function PATCH(
       data: { isPaid, paidAt: isPaid ? new Date() : null },
     })
 
+    // Roll individual member payments up into the bill's own status: once
+    // every household member's share is marked paid, the bill itself is
+    // considered paid. If a share gets un-marked afterward (someone
+    // reverses a mistaken tap), the bill goes back to unpaid rather than
+    // silently staying "PAID" while money is still owed.
+    const allSplits = await prisma.billSplit.findMany({ where: { billId: id } })
+    const allPaid = allSplits.length > 0 && allSplits.every(s => s.isPaid)
+
+    if (allPaid && split.bill.status !== 'PAID') {
+      await prisma.bill.update({
+        where: { id },
+        data: { status: 'PAID', paidAt: new Date() },
+      })
+    } else if (!allPaid && split.bill.status === 'PAID') {
+      await prisma.bill.update({
+        where: { id },
+        data: { status: 'UNPAID', paidAt: null },
+      })
+    }
+
     return NextResponse.json({ split: updated })
   } catch (error) {
     console.error('Bill split PATCH error:', error)

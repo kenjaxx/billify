@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import {
   Users, UserPlus, Trash2, Check, X as XIcon, Home,
-  Pencil, CheckCheck, CheckCircle, Clock, AlertCircle, FileText,
+  Pencil, CheckCircle, Clock, AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,6 @@ import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { IconActionButton } from '@/components/ui/icon-action-button'
 import { fetcher } from '@/lib/swr-fetcher'
-import { getEffectiveStatus } from '@/lib/bill-status'
 import EditBillModal from '@/app/(dashboard)/bills/EditBillModal'
 import SplitDetailsModal from '@/components/bills/SplitDetailsModal'
 import ReceiptViewButton from '@/components/bills/ReceiptViewButton'
@@ -78,10 +77,27 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
 }
 
-const statusConfig = {
-  PAID:    { label: 'Paid',    icon: CheckCircle, color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
-  UNPAID:  { label: 'Unpaid',  icon: Clock,       color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
-  OVERDUE: { label: 'Overdue', icon: AlertCircle, color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
+// Derives a display status from the SPLITS rather than trusting the raw
+// bill.status alone — a bill can be "fully paid" the moment every member's
+// share is settled (handled by the split PATCH route), but while that's in
+// progress we want to show "Pending" instead of a flat Unpaid/Overdue.
+function getSplitDisplay(bill: SharedBill) {
+  const total = bill.amount
+  const paid = bill.splits.reduce((sum, s) => sum + (s.isPaid ? s.amount : 0), 0)
+  const isFullyPaid = bill.splits.length > 0 && bill.splits.every(s => s.isPaid)
+
+  if (isFullyPaid) {
+    return { paid, total, label: 'Paid', color: '#34d399', bg: 'rgba(52,211,153,0.1)', Icon: CheckCircle }
+  }
+  if (paid > 0) {
+    return { paid, total, label: 'Pending', color: '#60a5fa', bg: 'rgba(59,130,246,0.1)', Icon: Clock }
+  }
+
+  const isOverdue = new Date(bill.dueDate) < new Date(new Date().setHours(0, 0, 0, 0))
+  if (isOverdue) {
+    return { paid, total, label: 'Overdue', color: '#f87171', bg: 'rgba(248,113,113,0.1)', Icon: AlertCircle }
+  }
+  return { paid, total, label: 'Unpaid', color: '#fbbf24', bg: 'rgba(251,191,36,0.1)', Icon: Clock }
 }
 
 export default function HouseholdPageClient({
@@ -129,12 +145,13 @@ export default function HouseholdPageClient({
   const [pendingRemove, setPendingRemove] = useState<Member | null>(null)
   const [removing, setRemoving] = useState(false)
 
-  // Shared bill management (owner-only edit/delete/mark-paid, anyone can view splits)
+  // Shared bill management
   const [editingBill, setEditingBill] = useState<SharedBill | null>(null)
   const [splitModalBill, setSplitModalBill] = useState<SharedBill | null>(null)
   const [pendingDeleteBill, setPendingDeleteBill] = useState<SharedBill | null>(null)
   const [billActionLoading, setBillActionLoading] = useState<string | null>(null)
   const [confirmBillLoading, setConfirmBillLoading] = useState(false)
+  const [splitActionLoadingId, setSplitActionLoadingId] = useState<string | null>(null)
 
   const handleCreateHousehold = async () => {
     if (!householdName.trim()) return
@@ -215,21 +232,24 @@ export default function HouseholdPageClient({
     }
   }
 
-  const handleMarkPaid = async (bill: SharedBill) => {
-    setBillActionLoading(bill.id)
+  // Toggles the CURRENT user's own share on a shared bill. Any household
+  // member can do this for their own split; the bill's overall status is
+  // auto-recalculated server-side once every member's share is paid.
+  const toggleMySplit = async (bill: SharedBill, split: SplitInfo) => {
+    setSplitActionLoadingId(split.id)
     try {
-      const res = await fetch(`/api/bills/${bill.id}`, {
+      const res = await fetch(`/api/bills/${bill.id}/splits/${split.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'PAID' }),
+        body: JSON.stringify({ isPaid: !split.isPaid }),
       })
       if (!res.ok) throw new Error()
-      toast.success(`"${bill.title}" marked as paid.`)
+      toast.success(split.isPaid ? 'Marked your share as unpaid.' : 'Marked your share as paid.')
       await mutateSharedBills()
     } catch {
-      toast.error('Could not update the bill.')
+      toast.error('Could not update your share.')
     } finally {
-      setBillActionLoading(null)
+      setSplitActionLoadingId(null)
     }
   }
 
@@ -451,8 +471,7 @@ export default function HouseholdPageClient({
         )}
       </div>
 
-      {/* Full shared bills list — this is where every household member sees
-          bills the creator has shared, instead of on the personal Bills page */}
+      {/* Full shared bills list */}
       {sharedBills.length > 0 && (
         <div style={{
           background: 'var(--bg-card)', border: '0.5px solid var(--border)',
@@ -463,12 +482,13 @@ export default function HouseholdPageClient({
           </div>
 
           {sharedBills.map((bill, i) => {
-            const effectiveStatus = getEffectiveStatus(bill)
-            const status = statusConfig[effectiveStatus]
-            const StatusIcon = status.icon
+            const display = getSplitDisplay(bill)
+            const StatusIcon = display.Icon
             const isOwner = bill.userId === currentUserId
             const isLoading = billActionLoading === bill.id
             const creatorLabel = bill.user.name ?? bill.user.email.split('@')[0]
+            const mySplit = bill.splits.find(s => s.householdMember.userId === currentUserId) ?? null
+            const mySplitLoading = mySplit ? splitActionLoadingId === mySplit.id : false
 
             return (
               <div
@@ -512,14 +532,49 @@ export default function HouseholdPageClient({
                     display: 'flex', alignItems: 'center', gap: '4px',
                     fontSize: '11px', fontWeight: '500',
                     padding: '4px 10px', borderRadius: '99px',
-                    background: status.bg, color: status.color,
+                    background: display.bg, color: display.color,
                   }}>
                     <StatusIcon size={11} />
-                    {status.label}
+                    {display.label}
                   </span>
-                  <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', minWidth: '80px', textAlign: 'right' }}>
-                    ₱{bill.amount.toLocaleString()}
+
+                  <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', textAlign: 'right' }}>
+                    ₱{display.paid.toLocaleString()}
+                    <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>
+                      /₱{display.total.toLocaleString()}
+                    </span>
                   </span>
+
+                  {mySplit && (
+                    mySplit.isPaid ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleMySplit(bill, mySplit)}
+                        disabled={mySplitLoading}
+                        title="Click to undo — mark your share unpaid"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '4px',
+                          fontSize: '11px', fontWeight: '500',
+                          padding: '5px 10px', borderRadius: '99px', border: 'none',
+                          background: 'rgba(52,211,153,0.12)', color: '#34d399',
+                          cursor: mySplitLoading ? 'not-allowed' : 'pointer',
+                          opacity: mySplitLoading ? 0.6 : 1,
+                        }}
+                      >
+                        <Check size={11} /> You paid ₱{mySplit.amount.toLocaleString()}
+                      </button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => toggleMySplit(bill, mySplit)}
+                        disabled={mySplitLoading}
+                        style={{ background: '#34d399', color: '#0a0c10' }}
+                      >
+                        {mySplitLoading ? 'Saving...' : `Mark my ₱${mySplit.amount.toLocaleString()} paid`}
+                      </Button>
+                    )
+                  )}
+
                   <div style={{ display: 'flex', gap: '2px' }}>
                     <IconActionButton
                       icon={Users}
@@ -529,15 +584,6 @@ export default function HouseholdPageClient({
                       disabled={isLoading}
                     />
                     {bill.receiptUrl && <ReceiptViewButton billId={bill.id} />}
-                    {isOwner && effectiveStatus !== 'PAID' && (
-                      <IconActionButton
-                        icon={CheckCheck}
-                        tone="success"
-                        label="Mark as paid"
-                        onClick={() => handleMarkPaid(bill)}
-                        disabled={isLoading}
-                      />
-                    )}
                     {isOwner && (
                       <>
                         <IconActionButton
