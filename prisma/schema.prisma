@@ -124,9 +124,10 @@ model SavingsGoal {
 model AiRequestLog {
   id        String   @id @default(uuid())
   userId    String
+  action    String   @default("ai")
   createdAt DateTime @default(now())
 
-  @@index([userId, createdAt])
+  @@index([userId, action, createdAt])
 }
 
 model Household {

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/get-user'
 import { prisma } from '@/lib/prisma'
 import { isRateLimited } from '@/lib/rate-limit'
+import { fileMatchesClaimedType } from '@/lib/file-signature'
 
 const devLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') console.log(...args)
@@ -28,6 +29,23 @@ export async function POST(req: Request) {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
     if (!allowedTypes.includes(mimeType)) {
       return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 })
+    }
+
+    // The client tells us what type the file is, but that's just a
+    // label it attached — never proof. Decode the actual bytes and
+    // check their real signature before we forward them to Gemini.
+    let fileBuffer: Buffer
+    try {
+      fileBuffer = Buffer.from(fileBase64, 'base64')
+    } catch {
+      return NextResponse.json({ error: 'Invalid file data.' }, { status: 400 })
+    }
+
+    if (fileBuffer.length === 0 || !fileMatchesClaimedType(fileBuffer, mimeType)) {
+      return NextResponse.json(
+        { error: 'The uploaded file does not match its claimed type and was rejected.' },
+        { status: 400 }
+      )
     }
 
     const categories = await prisma.category.findMany({ where: { userId: user.id } })

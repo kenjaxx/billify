@@ -3,12 +3,15 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { prisma } from '@/lib/prisma'
 import { billReminderEmail } from '@/lib/bill-reminder-email'
+import { timingSafeEqual } from '@/lib/timing-safe'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const expected = `Bearer ${process.env.CRON_SECRET}`
+
+  if (!authHeader || !timingSafeEqual(authHeader, expected)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

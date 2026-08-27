@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
+import { isRateLimited } from '@/lib/rate-limit'
 import { householdInviteEmail } from '@/lib/household-invite-email'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -10,6 +11,16 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Caps how many invite emails a single account can trigger per
+    // minute — without this, the endpoint could be used to spam
+    // arbitrary email addresses at Resend's expense.
+    if (await isRateLimited(user.id, 5, 'household-invite')) {
+      return NextResponse.json(
+        { error: 'Too many invites sent. Please wait a minute before trying again.' },
+        { status: 429 }
+      )
+    }
 
     const household = await prisma.household.findFirst({ where: { ownerId: user.id } })
     if (!household) {
