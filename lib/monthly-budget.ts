@@ -2,30 +2,32 @@ import { prisma } from '@/lib/prisma'
 
 /**
  * Total spend for a user in a given month: personal (non-household) bills
- * in full, plus ONLY the user's own split share of any household bills —
- * whether they're the bill owner or just a member. This keeps a roommate's
- * portion of a shared bill out of someone else's personal budget.
+ * in full, plus ONLY the user's own split share of any household bills.
+ *
+ * Uses DB-side `aggregate` instead of `findMany` + JS `reduce` — for users
+ * with a lot of bills/splits this avoids pulling every row into the Node
+ * process just to sum one column.
  */
 export async function getMonthlySpend(userId: string, month: number, year: number) {
   const start = new Date(year, month - 1, 1)
   const end = new Date(year, month, 0, 23, 59, 59)
 
-  const [personalBills, mySplits] = await Promise.all([
-    prisma.bill.findMany({
+  const [personalAgg, splitsAgg] = await Promise.all([
+    prisma.bill.aggregate({
       where: { userId, householdId: null, dueDate: { gte: start, lte: end } },
-      select: { amount: true },
+      _sum: { amount: true },
     }),
-    prisma.billSplit.findMany({
+    prisma.billSplit.aggregate({
       where: {
         householdMember: { userId },
         bill: { dueDate: { gte: start, lte: end } },
       },
-      select: { amount: true },
+      _sum: { amount: true },
     }),
   ])
 
-  const personalTotal = personalBills.reduce((sum, b) => sum + b.amount, 0)
-  const sharedTotal = mySplits.reduce((sum, s) => sum + s.amount, 0)
+  const personalTotal = personalAgg._sum.amount ?? 0
+  const sharedTotal = splitsAgg._sum.amount ?? 0
 
   return { personalTotal, sharedTotal, total: personalTotal + sharedTotal }
 }

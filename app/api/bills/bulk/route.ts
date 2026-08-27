@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
-import { createNextRecurrence } from '@/lib/bill-recurrence'
+import { createNextRecurrences } from '@/lib/bill-recurrence'
 
 export async function POST(req: Request) {
   try {
@@ -19,7 +19,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid action.' }, { status: 400 })
     }
 
-    // Only touch bills that actually belong to this user
     const bills = await prisma.bill.findMany({
       where: { id: { in: ids }, userId: user.id },
     })
@@ -35,7 +34,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, affected: validIds.length })
     }
 
-    // markPaid — skip bills that are already paid
     const billsToMark = bills.filter(b => b.status !== 'PAID')
 
     await prisma.bill.updateMany({
@@ -43,11 +41,8 @@ export async function POST(req: Request) {
       data: { status: 'PAID', paidAt: new Date() },
     })
 
-    for (const bill of billsToMark) {
-      if (bill.isRecurring) {
-        await createNextRecurrence(bill)
-      }
-    }
+    // One batched check + createMany instead of N sequential round-trips.
+    await createNextRecurrences(billsToMark)
 
     return NextResponse.json({ success: true, affected: billsToMark.length })
   } catch (error) {

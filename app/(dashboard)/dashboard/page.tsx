@@ -55,6 +55,26 @@ function resolvePeriod(sp: SearchParams) {
   }
 }
 
+// Reduces a `groupBy(['status'])` result into the totals the page needs,
+// entirely in SQL-side sums/counts instead of pulling every bill row into
+// Node and looping over it in JS.
+type StatusGroup = { status: string; _sum: { amount: number | null }; _count: { _all: number } }
+
+function summarizeByStatus(groups: StatusGroup[]) {
+  let total = 0
+  let totalCount = 0
+  let paidCount = 0
+
+  for (const g of groups) {
+    const amount = g._sum.amount ?? 0
+    total += amount
+    totalCount += g._count._all
+    if (g.status === 'PAID') paidCount += g._count._all
+  }
+
+  return { total, totalCount, paidCount, unpaidCount: totalCount - paidCount }
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -72,13 +92,21 @@ export default async function DashboardPage({
     ? { userId: user.id, dueDate: { gte: resolved.range.start, lte: resolved.range.end } }
     : { userId: user.id }
 
-  const [bills, prevBills, upcomingBills] = await Promise.all([
-    prisma.bill.findMany({ where: billsWhere }),
+  const [currentGroups, prevGroups, upcomingBills] = await Promise.all([
+    prisma.bill.groupBy({
+      by: ['status'],
+      where: billsWhere,
+      _sum: { amount: true },
+      _count: { _all: true },
+    }),
     resolved.prevRange
-      ? prisma.bill.findMany({
+      ? prisma.bill.groupBy({
+          by: ['status'],
           where: { userId: user.id, dueDate: { gte: resolved.prevRange.start, lte: resolved.prevRange.end } },
+          _sum: { amount: true },
+          _count: { _all: true },
         })
-      : Promise.resolve([]),
+      : Promise.resolve([] as StatusGroup[]),
     prisma.bill.findMany({
       where: { userId: user.id, status: { not: 'PAID' }, dueDate: { gte: now } },
       include: { category: true },
@@ -87,15 +115,16 @@ export default async function DashboardPage({
     }),
   ])
 
-  const totalAmount = bills.reduce((sum, b) => sum + b.amount, 0)
-  const paidBills = bills.filter(b => b.status === 'PAID').length
-  // Overdue bills are unpaid too — don't just count status === 'UNPAID'
-  const unpaidBills = bills.filter(b => b.status !== 'PAID').length
-  const totalBills = bills.length
+  const current = summarizeByStatus(currentGroups)
+  const prev = summarizeByStatus(prevGroups)
 
-  const prevTotal = prevBills.reduce((sum, b) => sum + b.amount, 0)
-  const amountTrend = resolved.prevRange && prevTotal > 0 ? ((totalAmount - prevTotal) / prevTotal) * 100 : null
-  const countTrend = resolved.prevRange && prevBills.length > 0 ? ((totalBills - prevBills.length) / prevBills.length) * 100 : null
+  const totalAmount = current.total
+  const paidBills = current.paidCount
+  const unpaidBills = current.unpaidCount
+  const totalBills = current.totalCount
+
+  const amountTrend = resolved.prevRange && prev.total > 0 ? ((totalAmount - prev.total) / prev.total) * 100 : null
+  const countTrend = resolved.prevRange && prev.totalCount > 0 ? ((totalBills - prev.totalCount) / prev.totalCount) * 100 : null
 
   const periodLabel = resolved.period === 'allTime'
     ? 'All time'
@@ -122,7 +151,6 @@ export default async function DashboardPage({
         </div>
         <DashboardPeriodSelector period={resolved.period} month={resolved.month} year={resolved.year} />
       </div>
-
 
       <HouseholdBalanceWidget currentUserId={user.id} />
 

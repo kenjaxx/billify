@@ -23,6 +23,7 @@ model User {
 
   monthlyBudgets MonthlyBudget[]
   savingsGoals   SavingsGoal[]
+  aiInsightCache AiInsightCache?
 }
 
 model Category {
@@ -109,12 +110,15 @@ model SavingsGoal {
   name         String
   targetAmount Float
   savedAmount  Float    @default(0)
+  month        Int
+  year         Int
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, year, month])
 }
 
 model AiRequestLog {
@@ -169,6 +173,16 @@ model BillSplit {
   @@unique([billId, householdMemberId])
   @@index([billId])
   @@index([householdMemberId])
+}
+
+model AiInsightCache {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  dataHash    String
+  insights    Json
+  generatedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum BillStatus {

@@ -153,7 +153,11 @@ export default function BudgetsPageClient({
       <TotalBudgetCard month={viewDate.month} year={viewDate.year} />
 
       {/* Savings goals — leftover budget can be manually allocated here. */}
-      <SavingsGoalsSection availableToAllocate={Math.max(monthlyBudget?.remaining ?? 0, 0)} />
+      <SavingsGoalsSection
+  availableToAllocate={Math.max(monthlyBudget?.remaining ?? 0, 0)}
+  month={viewDate.month}
+  year={viewDate.year}
+/>
 
       <div style={{
         background: 'var(--bg-card)',

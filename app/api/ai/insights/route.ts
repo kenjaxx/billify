@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
 import { isRateLimited } from '@/lib/rate-limit'
@@ -7,17 +8,12 @@ const devLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') console.log(...args)
 }
 
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000 // mirrors the client-side cache window
+
 export async function GET() {
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    if (await isRateLimited(user.id, 5)) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please wait a minute before trying again.' },
-        { status: 429 }
-      )
-    }
 
     const now = new Date()
     const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -106,6 +102,33 @@ export async function GET() {
       })),
     }
 
+    // Hash the exact data that would go into the prompt. If a cached
+    // result exists for this hash and it's still fresh, skip Gemini
+    // entirely — this is the common case when the user hits "refresh"
+    // but nothing has actually changed.
+    const dataHash = crypto.createHash('sha256').update(JSON.stringify(summary)).digest('hex')
+
+    const cached = await prisma.aiInsightCache.findUnique({ where: { userId: user.id } })
+    const cacheIsFresh =
+      cached &&
+      cached.dataHash === dataHash &&
+      Date.now() - cached.generatedAt.getTime() < CACHE_TTL_MS
+
+    if (cacheIsFresh) {
+      devLog('Insights served from server-side cache (data unchanged)')
+      return NextResponse.json({
+        insights: cached.insights,
+        generatedAt: cached.generatedAt.toISOString(),
+      })
+    }
+
+    if (await isRateLimited(user.id, 5)) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a minute before trying again.' },
+        { status: 429 }
+      )
+    }
+
     const prompt = `
 You are a personal finance assistant inside a bill-tracking app called Billify. Analyze the JSON data below and return 3-5 short, specific, actionable insights about the user's bills and spending.
 
@@ -167,6 +190,12 @@ Return this exact format:
     insights = insights
       .filter(i => i && typeof i.message === 'string' && validTypes.has(i.type))
       .slice(0, 5) as { type: string; message: string }[]
+
+    await prisma.aiInsightCache.upsert({
+      where: { userId: user.id },
+      update: { dataHash, insights, generatedAt: now },
+      create: { userId: user.id, dataHash, insights, generatedAt: now },
+    })
 
     return NextResponse.json({ insights, generatedAt: now.toISOString() })
   } catch (error) {

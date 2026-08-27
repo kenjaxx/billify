@@ -19,8 +19,19 @@ export type SavingsGoal = {
   savedAmount: number
 }
 
-export default function SavingsGoalsSection({ availableToAllocate }: { availableToAllocate: number }) {
-  const { data: goals = [], isLoading, mutate } = useSWR<SavingsGoal[]>('/api/savings-goals', fetcher)
+export default function SavingsGoalsSection({
+  availableToAllocate,
+  month,
+  year,
+}: {
+  availableToAllocate: number
+  month: number
+  year: number
+}) {
+  const { data: goals = [], isLoading, mutate } = useSWR<SavingsGoal[]>(
+    `/api/savings-goals?month=${month}&year=${year}`,
+    fetcher
+  )
 
   const [addOpen, setAddOpen] = useState(false)
   const [allocatingGoal, setAllocatingGoal] = useState<SavingsGoal | null>(null)
@@ -43,6 +54,8 @@ export default function SavingsGoalsSection({ availableToAllocate }: { available
     }
   }
 
+  const monthLabel = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long' })
+
   return (
     <div style={{
       background: 'var(--bg-card)', border: '0.5px solid var(--border)',
@@ -51,7 +64,9 @@ export default function SavingsGoalsSection({ availableToAllocate }: { available
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <PiggyBank size={15} color="#a78bfa" />
-          <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)' }}>Savings Goals</h2>
+          <h2 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)' }}>
+            Savings Goals <span style={{ fontWeight: '400', color: 'var(--text-muted)' }}>· {monthLabel} {year}</span>
+          </h2>
         </div>
         <Button size="sm" onClick={() => setAddOpen(true)}>
           <Plus size={13} /> New goal
@@ -63,8 +78,8 @@ export default function SavingsGoalsSection({ availableToAllocate }: { available
       ) : goals.length === 0 ? (
         <EmptyState
           icon={PiggyBank}
-          title="No savings goals yet"
-          description="Set a target — like an emergency fund or a trip — and put leftover budget toward it each month."
+          title="No savings goals for this month"
+          description="Set a target — like an emergency fund or a trip. Goals are tied to the month you create them in, so past/future months stay separate."
           action={{ label: 'Create a goal', onClick: () => setAddOpen(true) }}
         />
       ) : (
@@ -112,6 +127,8 @@ export default function SavingsGoalsSection({ availableToAllocate }: { available
         isOpen={addOpen}
         onClose={() => setAddOpen(false)}
         onSuccess={() => { setAddOpen(false); toast.success('Goal created.'); mutate() }}
+        month={month}
+        year={year}
       />
 
       {allocatingGoal && (

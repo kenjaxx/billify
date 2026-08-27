@@ -2,14 +2,18 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
 import { isValidAmount, isNonEmptyString } from '@/lib/validation'
+import { parseMonthYear } from '@/lib/monthly-budget'
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+    const { searchParams } = new URL(req.url)
+    const { month, year } = parseMonthYear(searchParams.get('month'), searchParams.get('year'))
+
     const goals = await prisma.savingsGoal.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, month, year },
       orderBy: { createdAt: 'asc' },
     })
     return NextResponse.json(goals)
@@ -35,11 +39,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Target amount must be a positive number.' }, { status: 400 })
     }
 
+    const { month, year } = parseMonthYear(body.month, body.year)
+
     const goal = await prisma.savingsGoal.create({
       data: {
         name: body.name.trim(),
         targetAmount: Number(body.targetAmount),
         userId: user.id,
+        month,
+        year,
       },
     })
     return NextResponse.json(goal)
