@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
 import { getUserHousehold } from '@/lib/get-household'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function GET(
   _req: Request,
@@ -39,6 +40,9 @@ export async function POST(
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const limited = await checkRateLimit(user.id, 20, 'bills-splits')
+    if (limited) return limited
 
     const { id } = await params
     const bill = await prisma.bill.findFirst({ where: { id, userId: user.id } })

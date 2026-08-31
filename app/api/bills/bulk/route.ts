@@ -2,11 +2,17 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
 import { createNextRecurrences } from '@/lib/bill-recurrence'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Lower limit than single-bill writes since one call here can affect
+    // many rows at once.
+    const limited = await checkRateLimit(user.id, 10, 'bills-bulk')
+    if (limited) return limited
 
     const body = await req.json()
     const ids: string[] = Array.isArray(body.ids) ? body.ids : []

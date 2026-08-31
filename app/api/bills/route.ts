@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
 import { validateBillInput } from '@/lib/validation'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function GET() {
   try {
@@ -31,6 +32,9 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const limited = await checkRateLimit(user.id, 40, 'bills-write')
+    if (limited) return limited
 
     const body = await req.json()
     const validation = validateBillInput(body)

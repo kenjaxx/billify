@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
 import { validateBudgetInput } from '@/lib/validation'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 function parseMonthYear(monthRaw: unknown, yearRaw: unknown) {
   const now = new Date()
@@ -35,6 +36,9 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const limited = await checkRateLimit(user.id, 20, 'budgets-write')
+    if (limited) return limited
 
     const body = await req.json()
     const validation = validateBudgetInput(body)

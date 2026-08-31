@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
 import { isValidAmount } from '@/lib/validation'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function PATCH(
   req: Request,
@@ -10,6 +11,9 @@ export async function PATCH(
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const limited = await checkRateLimit(user.id, 20, 'budgets-write')
+    if (limited) return limited
 
     const { id } = await params
     const existing = await prisma.budget.findFirst({ where: { id, userId: user.id } })
@@ -36,6 +40,9 @@ export async function DELETE(
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const limited = await checkRateLimit(user.id, 20, 'budgets-write')
+    if (limited) return limited
 
     const { id } = await params
     const existing = await prisma.budget.findFirst({ where: { id, userId: user.id } })

@@ -7,7 +7,7 @@ import { format } from 'date-fns'
 import {
   Users, UserPlus, Trash2, Check, X as XIcon, Home,
   Pencil, CheckCircle, Clock, AlertCircle, CheckCircle2,
-  Wallet, ArrowUpRight, ArrowDownLeft, FileDown, Loader2,
+  Wallet, ArrowUpRight, ArrowDownLeft, FileDown, Loader2, Send,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -149,6 +149,11 @@ export default function HouseholdPageClient({
   const [pendingRemove, setPendingRemove] = useState<Member | null>(null)
   const [removing, setRemoving] = useState(false)
 
+  // Pending household-invite management (resend / cancel)
+  const [resendingId, setResendingId] = useState<string | null>(null)
+  const [pendingCancelInvite, setPendingCancelInvite] = useState<Member | null>(null)
+  const [cancelingInvite, setCancelingInvite] = useState(false)
+
   // Shared bill management
   const [editingBill, setEditingBill] = useState<SharedBill | null>(null)
   const [splitModalBill, setSplitModalBill] = useState<SharedBill | null>(null)
@@ -218,6 +223,40 @@ export default function HouseholdPageClient({
       toast.error(err instanceof Error ? err.message : 'Failed to update invite.')
     } finally {
       setInvitesActionId(null)
+    }
+  }
+
+  const handleResendInvite = async (member: Member) => {
+    setResendingId(member.id)
+    try {
+      const res = await fetch(`/api/household/invite/${member.id}/resend`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to resend invite')
+      toast.success(`Invite resent to ${member.email}.`)
+      await mutateHousehold()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resend invite.')
+    } finally {
+      setResendingId(null)
+    }
+  }
+
+  const confirmCancelInvite = async () => {
+    if (!pendingCancelInvite) return
+    setCancelingInvite(true)
+    try {
+      const res = await fetch(`/api/household/invite/${pendingCancelInvite.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? 'Failed to cancel invite')
+      }
+      toast.success(`Invite to ${pendingCancelInvite.email} canceled.`)
+      await mutateHousehold()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not cancel invite.')
+    } finally {
+      setCancelingInvite(false)
+      setPendingCancelInvite(null)
     }
   }
 
@@ -497,20 +536,58 @@ export default function HouseholdPageClient({
                 </p>
               </div>
             </div>
-            {(household.isOwner || m.userId === currentUserId) && m.userId !== household.ownerId && (
-              <button
-                onClick={() => setPendingRemove(m)}
-                aria-label={`Remove ${m.email}`}
-                title={m.userId === currentUserId ? 'Leave household' : 'Remove member'}
-                style={{
-                  width: '30px', height: '30px', borderRadius: '8px',
-                  border: '0.5px solid rgba(248,113,113,0.35)', background: 'transparent',
-                  color: '#f87171', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                <Trash2 size={14} />
-              </button>
+
+            {m.status === 'PENDING' ? (
+              household.isOwner && (
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    onClick={() => handleResendInvite(m)}
+                    disabled={resendingId === m.id}
+                    title="Resend invite email"
+                    aria-label={`Resend invite to ${m.email}`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      padding: '6px 12px', borderRadius: '8px',
+                      border: '0.5px solid rgba(59,130,246,0.35)', background: 'transparent',
+                      color: '#60a5fa', fontSize: '12px', fontWeight: '500',
+                      cursor: resendingId === m.id ? 'not-allowed' : 'pointer',
+                      opacity: resendingId === m.id ? 0.6 : 1,
+                    }}
+                  >
+                    <Send size={13} />
+                    {resendingId === m.id ? 'Sending...' : 'Resend'}
+                  </button>
+                  <button
+                    onClick={() => setPendingCancelInvite(m)}
+                    title="Cancel invite"
+                    aria-label={`Cancel invite to ${m.email}`}
+                    style={{
+                      width: '30px', height: '30px', borderRadius: '8px',
+                      border: '0.5px solid rgba(248,113,113,0.35)', background: 'transparent',
+                      color: '#f87171', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              )
+            ) : (
+              (household.isOwner || m.userId === currentUserId) && m.userId !== household.ownerId && (
+                <button
+                  onClick={() => setPendingRemove(m)}
+                  aria-label={`Remove ${m.email}`}
+                  title={m.userId === currentUserId ? 'Leave household' : 'Remove member'}
+                  style={{
+                    width: '30px', height: '30px', borderRadius: '8px',
+                    border: '0.5px solid rgba(248,113,113,0.35)', background: 'transparent',
+                    color: '#f87171', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <Trash2 size={14} />
+                </button>
+              )
             )}
           </div>
         ))}
@@ -779,6 +856,16 @@ export default function HouseholdPageClient({
         loading={removing}
         onConfirm={confirmRemove}
         onCancel={() => setPendingRemove(null)}
+      />
+
+      <ConfirmDialog
+        open={pendingCancelInvite !== null}
+        title="Cancel this invite?"
+        description={`The invite sent to "${pendingCancelInvite?.email ?? ''}" will be canceled. You can invite them again later.`}
+        confirmLabel="Cancel invite"
+        loading={cancelingInvite}
+        onConfirm={confirmCancelInvite}
+        onCancel={() => setPendingCancelInvite(null)}
       />
 
       {editingBill && (

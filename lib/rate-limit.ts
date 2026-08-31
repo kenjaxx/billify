@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 const WINDOW_MS = 60_000
@@ -32,4 +33,26 @@ export async function isRateLimited(userId: string, limit: number, action: strin
 
   await prisma.aiRequestLog.create({ data: { userId, action } })
   return false
+}
+
+/**
+ * Convenience wrapper for route handlers. Checks the limit and, if
+ * exceeded, returns a ready-to-return 429 NextResponse; otherwise
+ * returns null so the caller can continue.
+ *
+ *   const limited = await checkRateLimit(user.id, 30, 'bills-write')
+ *   if (limited) return limited
+ */
+export async function checkRateLimit(
+  userId: string,
+  limit: number,
+  action: string
+): Promise<NextResponse | null> {
+  if (await isRateLimited(userId, limit, action)) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down and try again in a minute.' },
+      { status: 429 }
+    )
+  }
+  return null
 }
