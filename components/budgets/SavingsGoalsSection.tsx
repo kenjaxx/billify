@@ -87,6 +87,7 @@ export default function SavingsGoalsSection({
           {goals.map(goal => {
             const pct = goal.targetAmount > 0 ? Math.min(Math.round((goal.savedAmount / goal.targetAmount) * 100), 100) : 0
             const reached = goal.savedAmount >= goal.targetAmount
+            const remaining = Math.max(goal.targetAmount - goal.savedAmount, 0)
             return (
               <div key={goal.id}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -106,8 +107,13 @@ export default function SavingsGoalsSection({
                     />
                   </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  <span>₱{goal.savedAmount.toLocaleString()} / ₱{goal.targetAmount.toLocaleString()}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
+                  <span>
+                    ₱{goal.savedAmount.toLocaleString()} / ₱{goal.targetAmount.toLocaleString()}
+                    {!reached && (
+                      <span style={{ color: 'var(--text-dim)' }}> (₱{remaining.toLocaleString()} left)</span>
+                    )}
+                  </span>
                   <span style={{ color: reached ? '#34d399' : 'var(--text-muted)' }}>{reached ? 'Goal reached 🎉' : `${pct}%`}</span>
                 </div>
                 <div style={{ background: 'var(--icon-bg)', borderRadius: '99px', height: '8px' }}>
