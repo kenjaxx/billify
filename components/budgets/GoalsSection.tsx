@@ -97,8 +97,6 @@ export default function GoalsSection({
 
   const refreshAll = () => { mutateGoals(); mutateSummary() }
 
-  // Flatten every spending envelope across categories into one list,
-  // keeping a reference to its parent category for icon/name/logging.
   const spendingItems = summary.flatMap(s =>
     s.envelopes.map(env => ({ ...env, category: s.category }))
   )
@@ -233,6 +231,9 @@ export default function GoalsSection({
           {spendingItems.map(env => {
             const isExpanded = expandedEnvelopeId === env.id
             const barColor = getBarColor(env.pctUsed)
+            const isOverBudget = env.spent > env.amount
+            // env.remaining is already max(amount - spent, 0) from the API,
+            // so this is 0 once you're at/over budget — show "over" instead.
             return (
               <div key={`spending-${env.id}`}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', gap: '8px', flexWrap: 'wrap' }}>
@@ -261,10 +262,24 @@ export default function GoalsSection({
                     />
                   </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  <span>₱{env.spent.toLocaleString()} / ₱{env.amount.toLocaleString()}</span>
-                  <span>{env.pctUsed}% used</span>
-                </div>
+
+                {/* ── Updated line: now shows "(₱X left)" like the savings goals do,
+                     or "₱X over" once spending has passed the limit. ── */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
+  <span>
+    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>₱{env.spent.toLocaleString()}</span>
+    {' '}/ ₱{env.amount.toLocaleString()}
+    {isOverBudget ? (
+      <span style={{ color: '#f87171', fontWeight: 500 }}> (₱{(env.spent - env.amount).toLocaleString()} over)</span>
+    ) : (
+      <span style={{ color: '#60a5fa', fontWeight: 500 }}> (₱{env.remaining.toLocaleString()} left)</span>
+    )}
+  </span>
+  <span style={{ color: isOverBudget ? '#f87171' : 'var(--text-muted)' }}>
+    {isOverBudget ? 'Over budget' : `${env.pctUsed}% used`}
+  </span>
+</div>
+
                 <div style={{ background: 'var(--icon-bg)', borderRadius: '99px', height: '8px', marginBottom: '6px' }}>
                   <div style={{ height: '8px', borderRadius: '99px', width: `${Math.min(env.pctUsed, 100)}%`, background: barColor, transition: 'width 0.3s ease' }} />
                 </div>

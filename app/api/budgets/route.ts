@@ -21,8 +21,15 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const { month, year } = parseMonthYear(searchParams.get('month'), searchParams.get('year'))
 
+    // Only return budgets tied to BILL categories here. Spending-goal
+    // budgets (SPENDING category, created from the Goals section on the
+    // Budgets page) are fetched separately via /api/expenses/summary.
+    // Without this filter, a spending goal showed up a SECOND time here
+    // as a stray "budget" card whose spend is computed from Bills
+    // (always ₱0) instead of Expenses — which is why it looked like it
+    // was reset to 0/8000 even though money had been logged against it.
     const budgets = await prisma.budget.findMany({
-      where: { userId: user.id, month, year },
+      where: { userId: user.id, month, year, category: { type: 'BILL' } },
       include: { category: true },
     })
     return NextResponse.json(budgets)
@@ -55,12 +62,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid category.' }, { status: 400 })
     }
 
-    // Matching now includes `name`. Callers that never send a name (the
-    // Bills-side "Set Budget" modal) still match on categoryId+month+year
-    // alone (name: null both times) and keep overwriting one budget per
-    // category, exactly like before. Callers that DO send a distinct name
-    // (the Spending Tracker's "New Budget" envelope flow) create a
-    // separate row instead of clobbering an existing one.
     const existing = await prisma.budget.findFirst({
       where: { userId: user.id, categoryId, month, year, name: name ?? null },
     })

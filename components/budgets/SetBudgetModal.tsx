@@ -5,7 +5,7 @@ import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 
-type Category = { id: string; name: string; icon: string | null }
+type Category = { id: string; name: string; icon: string | null; type?: string }
 
 type EditTarget = {
   id: string
@@ -49,7 +49,14 @@ export default function SetBudgetModal({ isOpen, onClose, onSuccess, month, year
       return
     }
     setForm({ categoryId: '', amount: '' })
-    fetch('/api/categories').then(r => r.json()).then(setCategories)
+    // Only BILL categories belong here — SPENDING categories are managed
+    // from the Goals section on this same page, via their own budgets.
+    fetch('/api/categories')
+      .then(r => r.json())
+      .then((data: Category[]) => {
+        setCategories(Array.isArray(data) ? data.filter(c => c.type !== 'SPENDING') : [])
+      })
+      .catch(() => setCategories([]))
   }, [isOpen, editBudget])
 
   const handleSubmit = async () => {
