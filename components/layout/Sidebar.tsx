@@ -11,7 +11,7 @@ import {
   Users,
   LogOut,
   AlertTriangle,
-  PiggyBank,
+  
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useState } from 'react'
@@ -19,7 +19,6 @@ import { useState } from 'react'
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Bills', href: '/bills', icon: FileText },
-  { label: 'Spending', href: '/spending', icon: PiggyBank },
   { label: 'Budgets', href: '/budgets', icon: Wallet },
   { label: 'Shared Bills', href: '/household', icon: Users },
   { label: 'Reports', href: '/reports', icon: BarChart2 },

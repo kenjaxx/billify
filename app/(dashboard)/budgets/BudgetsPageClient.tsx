@@ -11,7 +11,7 @@ import { IconActionButton } from '@/components/ui/icon-action-button'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import SetBudgetModal from '@/components/budgets/SetBudgetModal'
 import TotalBudgetCard from '@/components/budgets/TotalBudgetCard'
-import SavingsGoalsSection from '@/components/budgets/SavingsGoalsSection'
+import GoalsSection from '@/components/budgets/GoalsSection'
 import { fetcher } from '@/lib/swr-fetcher'
 
 type Budget = {
@@ -108,8 +108,8 @@ export default function BudgetsPageClient({
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: '500', color: 'var(--text-primary)' }}>Budgets</h1>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Spending limits per category
-          </p>
+  Spending limits, savings, and spending goals
+</p>
         </div>
         <Button onClick={() => setIsModalOpen(true)}>
           <Plus size={15} /> Set Budget
@@ -153,7 +153,7 @@ export default function BudgetsPageClient({
       <TotalBudgetCard month={viewDate.month} year={viewDate.year} />
 
       {/* Savings goals — leftover budget can be manually allocated here. */}
-      <SavingsGoalsSection
+      <GoalsSection
   availableToAllocate={Math.max(monthlyBudget?.remaining ?? 0, 0)}
   month={viewDate.month}
   year={viewDate.year}
