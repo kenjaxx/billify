@@ -1,4 +1,4 @@
-// app/api/expenses/[id]/route.ts — NEW FILE
+// app/api/expenses/[id]/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
@@ -26,20 +26,30 @@ export async function PATCH(
       note: body.note !== undefined ? body.note : existing.note,
       categoryId: body.categoryId ?? existing.categoryId,
       spentAt: body.spentAt ?? existing.spentAt.toISOString(),
+      budgetId: body.budgetId !== undefined ? body.budgetId : existing.budgetId,
     })
     if (!validation.valid) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
-    const { amount, note, categoryId, spentAt } = validation.data
+    const { amount, note, categoryId, spentAt, budgetId } = validation.data
 
     const category = await prisma.category.findFirst({
       where: { id: categoryId, userId: user.id },
     })
     if (!category) return NextResponse.json({ error: 'Invalid category.' }, { status: 400 })
 
+    if (budgetId) {
+      const budget = await prisma.budget.findFirst({
+        where: { id: budgetId, userId: user.id, categoryId },
+      })
+      if (!budget) {
+        return NextResponse.json({ error: 'Invalid budget envelope.' }, { status: 400 })
+      }
+    }
+
     const updated = await prisma.expense.update({
       where: { id },
-      data: { amount, note, categoryId, spentAt: new Date(spentAt) },
+      data: { amount, note, categoryId, spentAt: new Date(spentAt), budgetId },
       include: { category: true },
     })
 

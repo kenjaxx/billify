@@ -1,4 +1,4 @@
-// app/api/expenses/route.ts — NEW FILE
+// app/api/expenses/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/get-user'
@@ -54,13 +54,22 @@ export async function POST(req: Request) {
     if (!validation.valid) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
-    const { amount, note, categoryId, spentAt } = validation.data
+    const { amount, note, categoryId, spentAt, budgetId } = validation.data
 
     const category = await prisma.category.findFirst({
       where: { id: categoryId, userId: user.id },
     })
     if (!category) {
       return NextResponse.json({ error: 'Invalid category.' }, { status: 400 })
+    }
+
+    if (budgetId) {
+      const budget = await prisma.budget.findFirst({
+        where: { id: budgetId, userId: user.id, categoryId },
+      })
+      if (!budget) {
+        return NextResponse.json({ error: 'Invalid budget envelope.' }, { status: 400 })
+      }
     }
 
     const expense = await prisma.expense.create({
@@ -70,6 +79,7 @@ export async function POST(req: Request) {
         spentAt: new Date(spentAt),
         userId: user.id,
         categoryId,
+        budgetId,
       },
       include: { category: true },
     })

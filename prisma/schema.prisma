@@ -74,8 +74,11 @@ model Bill {
   @@index([householdId])
 }
 
+// prisma/schema.prisma — Budget and Expense models updated, rest unchanged
+
 model Budget {
   id         String   @id @default(uuid())
+  name       String?
   amount     Float
   month      Int
   year       Int
@@ -83,8 +86,9 @@ model Budget {
   categoryId String
   createdAt  DateTime @default(now())
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  expenses Expense[]
 
   @@index([userId, month, year])
   @@index([categoryId])
@@ -196,13 +200,16 @@ model Expense {
   spentAt    DateTime @default(now())
   userId     String
   categoryId String
+  budgetId   String?
   createdAt  DateTime @default(now())
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  budget   Budget?  @relation(fields: [budgetId], references: [id], onDelete: SetNull)
 
   @@index([userId, categoryId])
   @@index([userId, spentAt])
+  @@index([budgetId])
 }
 
 enum BillStatus {

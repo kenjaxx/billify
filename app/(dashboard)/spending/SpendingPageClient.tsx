@@ -1,11 +1,11 @@
-// app/(dashboard)/spending/SpendingPageClient.tsx — NEW FILE
+// app/(dashboard)/spending/SpendingPageClient.tsx
 'use client'
 
 import { useState } from 'react'
 import useSWR from 'swr'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
-import { Plus, ChevronLeft, ChevronRight, Wallet, Pencil, Trash2, MapPin } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, Wallet, Pencil, Trash2, MapPin, Layers } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { IconActionButton } from '@/components/ui/icon-action-button'
@@ -13,15 +13,24 @@ import { EmptyState } from '@/components/ui/empty-state'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { fetcher } from '@/lib/swr-fetcher'
 import AddExpenseModal from '@/components/spending/AddExpenseModal'
+import SetSpendingBudgetModal from '@/components/budgets/SetSpendingBudgetModal'
 
 type Entry = { id: string; amount: number; note: string | null; spentAt: string }
-type CategorySummary = {
-  category: { id: string; name: string; icon: string | null; color: string | null }
-  budget: number
+type Envelope = {
+  id: string
+  name: string | null
+  amount: number
   spent: number
   remaining: number
   pctUsed: number
   entries: Entry[]
+}
+type CategorySummary = {
+  category: { id: string; name: string; icon: string | null; color: string | null }
+  envelopes: Envelope[]
+  unassigned: { spent: number; entries: Entry[] }
+  totalBudget: number
+  totalSpent: number
 }
 type SummaryResponse = { month: number; year: number; summary: CategorySummary[] }
 
@@ -62,33 +71,53 @@ export default function SpendingPageClient({
 
   const summary = data?.summary ?? []
 
-  const [modalOpen, setModalOpen] = useState(false)
+  const [expenseModalOpen, setExpenseModalOpen] = useState(false)
   const [defaultCategoryId, setDefaultCategoryId] = useState<string | undefined>(undefined)
-  const [editingEntry, setEditingEntry] = useState<{ id: string; amount: number; note: string | null; categoryId: string; spentAt: string } | null>(null)
+  const [defaultBudgetId, setDefaultBudgetId] = useState<string | null | undefined>(undefined)
+  const [editingEntry, setEditingEntry] = useState<{ id: string; amount: number; note: string | null; categoryId: string; spentAt: string; budgetId?: string | null } | null>(null)
+
+  const [budgetModalOpen, setBudgetModalOpen] = useState(false)
+  const [budgetModalCategory, setBudgetModalCategory] = useState<{ id: string; name: string; icon: string | null } | null>(null)
+  const [editingBudget, setEditingBudget] = useState<{ id: string; name: string | null; amount: number } | null>(null)
+
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null)
-  const [pendingDelete, setPendingDelete] = useState<{ id: string; label: string } | null>(null)
+  const [pendingDeleteEntry, setPendingDeleteEntry] = useState<{ id: string; label: string } | null>(null)
+  const [pendingDeleteBudget, setPendingDeleteBudget] = useState<{ id: string; label: string } | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
 
   const monthLabel = new Date(viewDate.year, viewDate.month - 1, 1).toLocaleString('default', { month: 'long' })
   const prevMonth = () => setViewDate(({ month, year }) => month === 1 ? { month: 12, year: year - 1 } : { month: month - 1, year })
   const nextMonth = () => setViewDate(({ month, year }) => month === 12 ? { month: 1, year: year + 1 } : { month: month + 1, year })
 
-  const openAdd = (categoryId?: string) => {
+  const openAddExpense = (categoryId?: string, budgetId?: string | null) => {
     setEditingEntry(null)
     setDefaultCategoryId(categoryId)
-    setModalOpen(true)
+    setDefaultBudgetId(budgetId)
+    setExpenseModalOpen(true)
   }
 
-  const openEdit = (entry: Entry, categoryId: string) => {
-    setEditingEntry({ id: entry.id, amount: entry.amount, note: entry.note, categoryId, spentAt: entry.spentAt })
-    setModalOpen(true)
+  const openEditExpense = (entry: Entry, categoryId: string, budgetId: string | null) => {
+    setEditingEntry({ id: entry.id, amount: entry.amount, note: entry.note, categoryId, spentAt: entry.spentAt, budgetId })
+    setExpenseModalOpen(true)
   }
 
-  const confirmDelete = async () => {
-    if (!pendingDelete) return
+  const openNewBudget = (cat: CategorySummary['category']) => {
+    setBudgetModalCategory(cat)
+    setEditingBudget(null)
+    setBudgetModalOpen(true)
+  }
+
+  const openEditBudget = (cat: CategorySummary['category'], envelope: Envelope) => {
+    setBudgetModalCategory(cat)
+    setEditingBudget({ id: envelope.id, name: envelope.name, amount: envelope.amount })
+    setBudgetModalOpen(true)
+  }
+
+  const confirmDeleteEntry = async () => {
+    if (!pendingDeleteEntry) return
     setConfirmLoading(true)
     try {
-      const res = await fetch(`/api/expenses/${pendingDelete.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/expenses/${pendingDeleteEntry.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast.success('Expense deleted.')
       await mutate()
@@ -96,12 +125,28 @@ export default function SpendingPageClient({
       toast.error('Could not delete expense.')
     } finally {
       setConfirmLoading(false)
-      setPendingDelete(null)
+      setPendingDeleteEntry(null)
     }
   }
 
-  const totalBudget = summary.reduce((sum, s) => sum + s.budget, 0)
-  const totalSpent = summary.reduce((sum, s) => sum + s.spent, 0)
+  const confirmDeleteBudget = async () => {
+    if (!pendingDeleteBudget) return
+    setConfirmLoading(true)
+    try {
+      const res = await fetch(`/api/budgets/${pendingDeleteBudget.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      toast.success('Budget deleted.')
+      await mutate()
+    } catch {
+      toast.error('Could not delete budget.')
+    } finally {
+      setConfirmLoading(false)
+      setPendingDeleteBudget(null)
+    }
+  }
+
+  const totalBudget = summary.reduce((sum, s) => sum + s.totalBudget, 0)
+  const totalSpent = summary.reduce((sum, s) => sum + s.totalSpent, 0)
 
   return (
     <div style={{ maxWidth: '760px', margin: '0 auto' }}>
@@ -112,7 +157,7 @@ export default function SpendingPageClient({
             Track gradual spending against your ongoing budgets (Groceries, etc.)
           </p>
         </div>
-        <Button onClick={() => openAdd()}>
+        <Button onClick={() => openAddExpense()}>
           <Plus size={15} /> Log Expense
         </Button>
       </div>
@@ -176,72 +221,127 @@ export default function SpendingPageClient({
         ) : (
           summary.map((s, i) => {
             const isExpanded = expandedCategoryId === s.category.id
-            const barColor = getBarColor(s.pctUsed)
+            const catPct = s.totalBudget > 0 ? Math.min(Math.round((s.totalSpent / s.totalBudget) * 100), 100) : 0
+            const barColor = getBarColor(catPct)
+            const allEntries = [
+              ...s.envelopes.flatMap(env => env.entries.map(e => ({ entry: e, envelopeId: env.id as string | null, envelopeName: env.name }))),
+              ...s.unassigned.entries.map(e => ({ entry: e, envelopeId: null as string | null, envelopeName: null })),
+            ].sort((a, b) => new Date(b.entry.spentAt).getTime() - new Date(a.entry.spentAt).getTime())
+
             return (
               <div key={s.category.id} style={{ borderBottom: i < summary.length - 1 ? '0.5px solid var(--border)' : 'none' }}>
-                <div
-                  onClick={() => setExpandedCategoryId(isExpanded ? null : s.category.id)}
-                  style={{ padding: '16px 20px', cursor: 'pointer' }}
-                >
+                <div style={{ padding: '16px 20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '10px', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ fontSize: '18px' }}>{s.category.icon ?? '📄'}</span>
                       <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>{s.category.name}</span>
-                      {s.budget === 0 && (
+                      {s.envelopes.length === 0 && (
                         <span style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '2px 8px', borderRadius: '99px' }}>
-                          No budget set
+                          No budgets set
                         </span>
                       )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ textAlign: 'right' }}>
                         <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>
-                          ₱{s.spent.toLocaleString()}
+                          ₱{s.totalSpent.toLocaleString()}
                         </span>
-                        {s.budget > 0 && (
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}> / ₱{s.budget.toLocaleString()}</span>
+                        {s.totalBudget > 0 && (
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}> / ₱{s.totalBudget.toLocaleString()}</span>
                         )}
                       </div>
-                      <Button size="sm" onClick={(e) => { e.stopPropagation(); openAdd(s.category.id) }}>
+                      <Button size="sm" variant="outline" onClick={() => openNewBudget(s.category)}>
+                        <Layers size={13} /> New Budget
+                      </Button>
+                      <Button size="sm" onClick={() => openAddExpense(s.category.id)}>
                         <Plus size={13} /> Add
                       </Button>
                     </div>
                   </div>
-                  {s.budget > 0 && (
+                  {s.totalBudget > 0 && (
                     <>
                       <div style={{ background: 'var(--icon-bg)', borderRadius: '99px', height: '6px' }}>
                         <div style={{
                           height: '6px', borderRadius: '99px',
-                          width: `${Math.min(s.pctUsed, 100)}%`, background: barColor,
+                          width: `${catPct}%`, background: barColor,
                           transition: 'width 0.3s ease',
                         }} />
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{s.pctUsed}% used</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{catPct}% used</span>
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          ₱{s.remaining.toLocaleString()} left
+                          ₱{Math.max(s.totalBudget - s.totalSpent, 0).toLocaleString()} left
                         </span>
                       </div>
                     </>
                   )}
-                  <p style={{ fontSize: '11px', color: '#60a5fa', marginTop: '8px' }}>
-                    {isExpanded ? 'Hide' : 'Show'} {s.entries.length} entr{s.entries.length !== 1 ? 'ies' : 'y'}
-                  </p>
+                </div>
+
+                {/* Individual budget envelopes */}
+                {s.envelopes.length > 0 && (
+                  <div style={{ padding: '0 20px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {s.envelopes.map(env => (
+                      <div key={env.id} style={{
+                        padding: '10px 12px', borderRadius: '8px', background: 'var(--bg-tertiary)',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', gap: '8px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                            {env.name ?? 'General'}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              ₱{env.spent.toLocaleString()} / ₱{env.amount.toLocaleString()}
+                            </span>
+                            <IconActionButton icon={Pencil} tone="default" label={`Edit ${env.name ?? 'budget'}`} onClick={() => openEditBudget(s.category, env)} size={12} />
+                            <IconActionButton
+                              icon={Trash2}
+                              tone="danger"
+                              label={`Delete ${env.name ?? 'budget'}`}
+                              onClick={() => setPendingDeleteBudget({ id: env.id, label: env.name ?? 'this budget' })}
+                              size={12}
+                            />
+                          </div>
+                        </div>
+                        <div style={{ background: 'var(--icon-bg)', borderRadius: '99px', height: '5px' }}>
+                          <div style={{
+                            height: '5px', borderRadius: '99px',
+                            width: `${Math.min(env.pctUsed, 100)}%`, background: getBarColor(env.pctUsed),
+                            transition: 'width 0.3s ease',
+                          }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ padding: '0 20px 16px' }}>
+                  <button
+                    onClick={() => setExpandedCategoryId(isExpanded ? null : s.category.id)}
+                    style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: '11px', cursor: 'pointer', padding: 0 }}
+                  >
+                    {isExpanded ? 'Hide' : 'Show'} {allEntries.length} entr{allEntries.length !== 1 ? 'ies' : 'y'}
+                  </button>
                 </div>
 
                 {isExpanded && (
                   <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {s.entries.length === 0 ? (
+                    {allEntries.length === 0 ? (
                       <p style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '8px 0' }}>No expenses logged this month yet.</p>
                     ) : (
-                      s.entries.map(entry => (
+                      allEntries.map(({ entry, envelopeId, envelopeName }) => (
                         <div key={entry.id} style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                           padding: '10px 12px', borderRadius: '8px', background: 'var(--bg-tertiary)', gap: '10px',
                         }}>
                           <div style={{ minWidth: 0 }}>
-                            <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                            <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                               ₱{entry.amount.toLocaleString()}
+                              <span style={{
+                                fontSize: '9px', fontWeight: '600', color: '#a78bfa',
+                                background: 'rgba(167,139,250,0.12)', padding: '1px 6px', borderRadius: '99px',
+                              }}>
+                                {envelopeName ?? (envelopeId ? 'General' : 'Unassigned')}
+                              </span>
                             </p>
                             <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                               {entry.note && <><MapPin size={10} /> {entry.note} · </>}
@@ -253,13 +353,13 @@ export default function SpendingPageClient({
                               icon={Pencil}
                               tone="default"
                               label="Edit expense"
-                              onClick={() => openEdit(entry, s.category.id)}
+                              onClick={() => openEditExpense(entry, s.category.id, envelopeId)}
                             />
                             <IconActionButton
                               icon={Trash2}
                               tone="danger"
                               label="Delete expense"
-                              onClick={() => setPendingDelete({ id: entry.id, label: `₱${entry.amount.toLocaleString()}${entry.note ? ` at ${entry.note}` : ''}` })}
+                              onClick={() => setPendingDeleteEntry({ id: entry.id, label: `₱${entry.amount.toLocaleString()}${entry.note ? ` at ${entry.note}` : ''}` })}
                             />
                           </div>
                         </div>
@@ -274,21 +374,48 @@ export default function SpendingPageClient({
       </div>
 
       <AddExpenseModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSuccess={() => { setModalOpen(false); mutate(); router.refresh() }}
+        isOpen={expenseModalOpen}
+        onClose={() => setExpenseModalOpen(false)}
+        onSuccess={() => { setExpenseModalOpen(false); mutate(); router.refresh() }}
+        month={viewDate.month}
+        year={viewDate.year}
         defaultCategoryId={defaultCategoryId}
+        defaultBudgetId={defaultBudgetId}
         editExpense={editingEntry}
       />
 
+      {budgetModalCategory && (
+        <SetSpendingBudgetModal
+          isOpen={budgetModalOpen}
+          onClose={() => setBudgetModalOpen(false)}
+          onSuccess={() => { setBudgetModalOpen(false); mutate(); router.refresh() }}
+          month={viewDate.month}
+          year={viewDate.year}
+          categoryId={budgetModalCategory.id}
+          categoryName={budgetModalCategory.name}
+          categoryIcon={budgetModalCategory.icon}
+          editBudget={editingBudget}
+        />
+      )}
+
       <ConfirmDialog
-        open={pendingDelete !== null}
+        open={pendingDeleteEntry !== null}
         title="Delete this expense?"
-        description={`"${pendingDelete?.label ?? ''}" will be permanently deleted. This cannot be undone.`}
+        description={`"${pendingDeleteEntry?.label ?? ''}" will be permanently deleted. This cannot be undone.`}
         confirmLabel="Delete"
         loading={confirmLoading}
-        onConfirm={confirmDelete}
-        onCancel={() => setPendingDelete(null)}
+        onConfirm={confirmDeleteEntry}
+        onCancel={() => setPendingDeleteEntry(null)}
+      />
+
+      <ConfirmDialog
+        open={pendingDeleteBudget !== null}
+        title="Delete this budget?"
+        description={`"${pendingDeleteBudget?.label ?? ''}" will be removed. Any expenses logged under it stay, but become unassigned. This cannot be undone.`}
+        confirmLabel="Delete"
+        loading={confirmLoading}
+        onConfirm={confirmDeleteBudget}
+        onCancel={() => setPendingDeleteBudget(null)}
       />
     </div>
   )

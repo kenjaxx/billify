@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     if (!validation.valid) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
-    const { categoryId, amount } = validation.data
+    const { categoryId, amount, name } = validation.data
     const { month, year } = parseMonthYear(body.month, body.year)
 
     const category = await prisma.category.findFirst({
@@ -55,20 +55,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid category.' }, { status: 400 })
     }
 
+    // Matching now includes `name`. Callers that never send a name (the
+    // Bills-side "Set Budget" modal) still match on categoryId+month+year
+    // alone (name: null both times) and keep overwriting one budget per
+    // category, exactly like before. Callers that DO send a distinct name
+    // (the Spending Tracker's "New Budget" envelope flow) create a
+    // separate row instead of clobbering an existing one.
     const existing = await prisma.budget.findFirst({
-      where: { userId: user.id, categoryId, month, year },
+      where: { userId: user.id, categoryId, month, year, name: name ?? null },
     })
 
     if (existing) {
       const updated = await prisma.budget.update({
         where: { id: existing.id },
         data: { amount },
+        include: { category: true },
       })
       return NextResponse.json(updated)
     }
 
     const budget = await prisma.budget.create({
-      data: { amount, month, year, userId: user.id, categoryId },
+      data: { amount, name, month, year, userId: user.id, categoryId },
+      include: { category: true },
     })
     return NextResponse.json(budget)
   } catch (error) {

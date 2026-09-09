@@ -1,4 +1,4 @@
-// components/spending/AddExpenseModal.tsx — NEW FILE
+// components/spending/AddExpenseModal.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -9,6 +9,7 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 import { useTheme } from '@/lib/theme-context'
 
 type Category = { id: string; name: string; icon: string | null }
+type BudgetOption = { id: string; name: string | null; categoryId: string }
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -37,23 +38,31 @@ export default function AddExpenseModal({
   isOpen,
   onClose,
   onSuccess,
+  month,
+  year,
   defaultCategoryId,
+  defaultBudgetId,
   editExpense,
 }: {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
+  month: number
+  year: number
   defaultCategoryId?: string
-  editExpense?: { id: string; amount: number; note: string | null; categoryId: string; spentAt: string } | null
+  defaultBudgetId?: string | null
+  editExpense?: { id: string; amount: number; note: string | null; categoryId: string; spentAt: string; budgetId?: string | null } | null
 }) {
   const { theme } = useTheme()
   const [categories, setCategories] = useState<Category[]>([])
   const [catLoading, setCatLoading] = useState(false)
+  const [budgetOptions, setBudgetOptions] = useState<BudgetOption[]>([])
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     amount: '',
     note: '',
     categoryId: defaultCategoryId ?? '',
+    budgetId: (defaultBudgetId ?? '') as string,
     spentAt: toLocalDateTimeInputValue(new Date()),
   })
 
@@ -72,11 +81,21 @@ export default function AddExpenseModal({
       .catch(() => setCategories([]))
       .finally(() => setCatLoading(false))
 
+    // Pull this month's budgets so the category picker can offer a
+    // "which envelope is this for" dropdown when one exists.
+    fetch(`/api/budgets?month=${month}&year=${year}`)
+      .then(r => r.json())
+      .then((data: { id: string; name: string | null; categoryId: string }[]) => {
+        setBudgetOptions(Array.isArray(data) ? data.map(b => ({ id: b.id, name: b.name, categoryId: b.categoryId })) : [])
+      })
+      .catch(() => setBudgetOptions([]))
+
     if (editExpense) {
       setForm({
         amount: String(editExpense.amount),
         note: editExpense.note ?? '',
         categoryId: editExpense.categoryId,
+        budgetId: editExpense.budgetId ?? '',
         spentAt: toLocalDateTimeInputValue(new Date(editExpense.spentAt)),
       })
     } else {
@@ -84,10 +103,18 @@ export default function AddExpenseModal({
         amount: '',
         note: '',
         categoryId: defaultCategoryId ?? '',
+        budgetId: defaultBudgetId ?? '',
         spentAt: toLocalDateTimeInputValue(new Date()),
       })
     }
-  }, [isOpen, defaultCategoryId, editExpense])
+  }, [isOpen, defaultCategoryId, defaultBudgetId, editExpense, month, year])
+
+  const envelopesForCategory = budgetOptions.filter(b => b.categoryId === form.categoryId)
+
+  const handleCategoryChange = (categoryId: string) => {
+    // Switching category invalidates whatever envelope was picked.
+    setForm(p => ({ ...p, categoryId, budgetId: '' }))
+  }
 
   const handleSubmit = async () => {
     if (!form.amount || !form.categoryId) return
@@ -102,6 +129,7 @@ export default function AddExpenseModal({
           amount: parseFloat(form.amount),
           note: form.note || null,
           categoryId: form.categoryId,
+          budgetId: form.budgetId || null,
           spentAt: new Date(form.spentAt).toISOString(),
         }),
       })
@@ -140,12 +168,25 @@ export default function AddExpenseModal({
                 No spending categories yet. Create one (e.g. Groceries) marked as "Ongoing Spending" first.
               </div>
             ) : (
-              <select value={form.categoryId} onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))} style={inputStyle}>
+              <select value={form.categoryId} onChange={e => handleCategoryChange(e.target.value)} style={inputStyle}>
                 <option value="">Select category</option>
                 {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>)}
               </select>
             )}
           </div>
+
+          {form.categoryId && envelopesForCategory.length > 0 && (
+            <div>
+              <label style={labelStyle}>Which budget is this for?</label>
+              <select value={form.budgetId} onChange={e => setForm(p => ({ ...p, budgetId: e.target.value }))} style={inputStyle}>
+                <option value="">No specific budget</option>
+                {envelopesForCategory.map(b => (
+                  <option key={b.id} value={b.id}>{b.name ?? 'General'}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label style={labelStyle}>Amount (₱)</label>
             <input type="number" placeholder="0.00" value={form.amount}

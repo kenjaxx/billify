@@ -1,4 +1,4 @@
-// app/(dashboard)/spending/page.tsx — NEW FILE
+// app/(dashboard)/spending/page.tsx
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { createSupabaseServer } from '@/lib/supabase-server'
@@ -27,24 +27,57 @@ export default async function SpendingPage() {
     }),
   ])
 
-  const budgetByCategory = new Map(budgets.map(b => [b.categoryId, b.amount]))
+  const budgetsByCategory = new Map<string, typeof budgets>()
+  budgets.forEach(b => {
+    const list = budgetsByCategory.get(b.categoryId) ?? []
+    list.push(b)
+    budgetsByCategory.set(b.categoryId, list)
+  })
 
   const initialSummary = categories.map(cat => {
+    const catBudgets = budgetsByCategory.get(cat.id) ?? []
     const catExpenses = expenses.filter(e => e.categoryId === cat.id)
-    const spent = catExpenses.reduce((sum, e) => sum + e.amount, 0)
-    const budgetAmount = budgetByCategory.get(cat.id) ?? 0
+    const envelopeIds = new Set(catBudgets.map(b => b.id))
+
+    const envelopes = catBudgets.map(b => {
+      const envExpenses = catExpenses.filter(e => e.budgetId === b.id)
+      const spent = envExpenses.reduce((sum, e) => sum + e.amount, 0)
+      return {
+        id: b.id,
+        name: b.name,
+        amount: b.amount,
+        spent,
+        remaining: Math.max(b.amount - spent, 0),
+        pctUsed: b.amount > 0 ? Math.min(Math.round((spent / b.amount) * 100), 999) : 0,
+        entries: envExpenses.map(e => ({
+          id: e.id,
+          amount: e.amount,
+          note: e.note,
+          spentAt: e.spentAt.toISOString(),
+        })),
+      }
+    })
+
+    const unassignedExpenses = catExpenses.filter(e => !e.budgetId || !envelopeIds.has(e.budgetId))
+    const unassignedSpent = unassignedExpenses.reduce((sum, e) => sum + e.amount, 0)
+
+    const totalBudget = catBudgets.reduce((sum, b) => sum + b.amount, 0)
+    const totalSpent = envelopes.reduce((sum, e) => sum + e.spent, 0) + unassignedSpent
+
     return {
       category: { id: cat.id, name: cat.name, icon: cat.icon, color: cat.color },
-      budget: budgetAmount,
-      spent,
-      remaining: Math.max(budgetAmount - spent, 0),
-      pctUsed: budgetAmount > 0 ? Math.min(Math.round((spent / budgetAmount) * 100), 999) : 0,
-      entries: catExpenses.map(e => ({
-        id: e.id,
-        amount: e.amount,
-        note: e.note,
-        spentAt: e.spentAt.toISOString(),
-      })),
+      envelopes,
+      unassigned: {
+        spent: unassignedSpent,
+        entries: unassignedExpenses.map(e => ({
+          id: e.id,
+          amount: e.amount,
+          note: e.note,
+          spentAt: e.spentAt.toISOString(),
+        })),
+      },
+      totalBudget,
+      totalSpent,
     }
   })
 

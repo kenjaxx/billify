@@ -61,13 +61,33 @@ export function validateBillInput(
   }
 }
 
+// lib/validation.ts — Budget input now supports an optional envelope name.
+// When `name` is omitted (as the Bills-side Budgets page still does), it's
+// stored as null and behaves exactly like before — one budget per category
+// per month. Passing a name lets the same category have multiple budgets
+// ("envelopes") that don't overwrite each other.
+export type BudgetInput = { categoryId: string; amount: number; name: string | null }
+
 export function validateBudgetInput(
   body: any
-): { valid: true; data: { categoryId: string; amount: number } } | { valid: false; error: string } {
+): { valid: true; data: BudgetInput } | { valid: false; error: string } {
   if (!isNonEmptyString(body.categoryId)) return { valid: false, error: 'Category is required.' }
   if (!isValidAmount(Number(body.amount))) return { valid: false, error: 'Amount must be a positive number.' }
+  if (body.name !== undefined && body.name !== null && typeof body.name !== 'string') {
+    return { valid: false, error: 'Budget name must be text.' }
+  }
+  if (body.name && String(body.name).trim().length > 60) {
+    return { valid: false, error: 'Budget name is too long.' }
+  }
 
-  return { valid: true, data: { categoryId: body.categoryId, amount: Number(body.amount) } }
+  return {
+    valid: true,
+    data: {
+      categoryId: body.categoryId,
+      amount: Number(body.amount),
+      name: body.name ? String(body.name).trim() : null,
+    },
+  }
 }
 
 // lib/validation.ts — update validateCategoryInput
@@ -91,12 +111,16 @@ export function validateCategoryInput(
 }
 
 
-// lib/validation.ts — ADD to the file
+// lib/validation.ts — expenses can now optionally reference a specific
+// budget envelope (budgetId). If omitted, the expense is "unassigned"
+// within its category — still tracked in the category total, just not
+// counted against any one envelope's progress bar.
 export type ExpenseInput = {
   amount: number
   note: string | null
   categoryId: string
   spentAt: string // ISO datetime
+  budgetId: string | null
 }
 
 export function validateExpenseInput(
@@ -109,6 +133,9 @@ export function validateExpenseInput(
   }
   if (body.note && body.note.length > 200) {
     return { valid: false, error: 'Note is too long.' }
+  }
+  if (body.budgetId !== undefined && body.budgetId !== null && typeof body.budgetId !== 'string') {
+    return { valid: false, error: 'Invalid budget envelope.' }
   }
 
   let spentAt = new Date().toISOString()
@@ -125,6 +152,7 @@ export function validateExpenseInput(
       note: body.note ? String(body.note).trim() : null,
       categoryId: body.categoryId,
       spentAt,
+      budgetId: body.budgetId ? String(body.budgetId) : null,
     },
   }
 }
