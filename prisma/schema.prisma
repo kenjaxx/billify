@@ -17,6 +17,7 @@ model User {
   categories Category[]
   bills      Bill[]
   budgets    Budget[]
+  expenses   Expense[]
 
   ownedHouseholds       Household[]
   householdMemberships  HouseholdMember[]
@@ -26,17 +27,20 @@ model User {
   aiInsightCache AiInsightCache?
 }
 
+// ── SINGLE Category model (merged) ──
 model Category {
-  id        String   @id @default(uuid())
+  id        String       @id @default(uuid())
   name      String
   icon      String?
   color     String?
+  type      CategoryType @default(BILL)
   userId    String
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bills   Bill[]
-  budgets Budget[]
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bills    Bill[]
+  budgets  Budget[]
+  expenses Expense[]
 
   @@index([userId])
 }
@@ -102,7 +106,6 @@ model MonthlyBudget {
   @@unique([userId, month, year])
   @@index([userId, year, month])
 }
-
 
 model SavingsGoal {
   id           String   @id @default(uuid())
@@ -186,6 +189,22 @@ model AiInsightCache {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model Expense {
+  id         String   @id @default(uuid())
+  amount     Float
+  note       String?
+  spentAt    DateTime @default(now())
+  userId     String
+  categoryId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([userId, categoryId])
+  @@index([userId, spentAt])
+}
+
 enum BillStatus {
   UNPAID
   PAID
@@ -205,4 +224,9 @@ enum PaymentMethod {
 enum MemberStatus {
   PENDING
   ACCEPTED
+}
+
+enum CategoryType {
+  BILL
+  SPENDING
 }

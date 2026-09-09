@@ -70,11 +70,14 @@ export function validateBudgetInput(
   return { valid: true, data: { categoryId: body.categoryId, amount: Number(body.amount) } }
 }
 
+// lib/validation.ts — update validateCategoryInput
 export function validateCategoryInput(
   body: any
-): { valid: true; data: { name: string; icon: string | null; color: string | null } } | { valid: false; error: string } {
+): { valid: true; data: { name: string; icon: string | null; color: string | null; type: 'BILL' | 'SPENDING' } } | { valid: false; error: string } {
   if (!isNonEmptyString(body.name)) return { valid: false, error: 'Category name is required.' }
   if (body.name.length > 50) return { valid: false, error: 'Category name is too long.' }
+
+  const type = body.type === 'SPENDING' ? 'SPENDING' : 'BILL'
 
   return {
     valid: true,
@@ -82,6 +85,46 @@ export function validateCategoryInput(
       name: body.name.trim(),
       icon: body.icon ? String(body.icon) : null,
       color: body.color ? String(body.color) : null,
+      type,
+    },
+  }
+}
+
+
+// lib/validation.ts — ADD to the file
+export type ExpenseInput = {
+  amount: number
+  note: string | null
+  categoryId: string
+  spentAt: string // ISO datetime
+}
+
+export function validateExpenseInput(
+  body: any
+): { valid: true; data: ExpenseInput } | { valid: false; error: string } {
+  if (!isValidAmount(Number(body.amount))) return { valid: false, error: 'Amount must be a positive number.' }
+  if (!isNonEmptyString(body.categoryId)) return { valid: false, error: 'Category is required.' }
+  if (body.note !== undefined && body.note !== null && typeof body.note !== 'string') {
+    return { valid: false, error: 'Note must be text.' }
+  }
+  if (body.note && body.note.length > 200) {
+    return { valid: false, error: 'Note is too long.' }
+  }
+
+  let spentAt = new Date().toISOString()
+  if (body.spentAt !== undefined && body.spentAt !== null) {
+    const d = new Date(body.spentAt)
+    if (isNaN(d.getTime())) return { valid: false, error: 'Invalid date/time.' }
+    spentAt = d.toISOString()
+  }
+
+  return {
+    valid: true,
+    data: {
+      amount: Number(body.amount),
+      note: body.note ? String(body.note).trim() : null,
+      categoryId: body.categoryId,
+      spentAt,
     },
   }
 }

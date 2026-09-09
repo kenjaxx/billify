@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   FileText,
   Wallet,
+  PiggyBank,
   Users,
   BarChart2,
 } from 'lucide-react'
@@ -13,6 +14,7 @@ import {
 const navItems = [
   { label: 'Home',      href: '/dashboard', icon: LayoutDashboard },
   { label: 'Bills',     href: '/bills',     icon: FileText },
+  { label: 'Spending',  href: '/spending',  icon: PiggyBank },
   { label: 'Budgets',   href: '/budgets',   icon: Wallet },
   { label: 'Household', href: '/household', icon: Users },
   { label: 'Reports',   href: '/reports',   icon: BarChart2 },

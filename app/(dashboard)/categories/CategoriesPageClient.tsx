@@ -17,6 +17,7 @@ type Category = {
   name: string
   icon: string | null
   color: string | null
+  type: 'BILL' | 'SPENDING'
   _count: { bills: number; budgets: number }
 }
 
@@ -94,6 +95,8 @@ export default function CategoriesPageClient({ initialCategories }: { initialCat
           />
         ) : (
           categories.map((cat, i) => (
+
+            
             <div key={cat.id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '14px 20px', flexWrap: 'wrap', gap: '10px',
@@ -139,6 +142,7 @@ export default function CategoriesPageClient({ initialCategories }: { initialCat
                 />
               </div>
             </div>
+            
           ))
         )}
       </div>

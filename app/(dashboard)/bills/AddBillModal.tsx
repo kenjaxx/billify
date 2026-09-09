@@ -68,31 +68,33 @@ export default function AddBillModal({ isOpen, onClose, onSuccess }: {
 
   useLockBodyScroll(isOpen)
 
-  useEffect(() => {
-    if (!isOpen) return
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null)
-      setUserEmail(data.user?.email ?? null)
-    })
-    setTempBillId(crypto.randomUUID())
-    setCatLoading(true)
-    setCatError('')
-    fetch('/api/categories')
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
-      .then(data => {
-        if (!Array.isArray(data) || data.length === 0) {
-          setCatError('No categories found.')
-          setCategories([])
-        } else {
-          setCategories(data)
-        }
-      })
-      .catch(() => {
-        setCatError('Failed to load categories.')
+  // app/(dashboard)/bills/AddBillModal.tsx — update the categories fetch effect
+useEffect(() => {
+  if (!isOpen) return
+  supabase.auth.getUser().then(({ data }) => {
+    setUserId(data.user?.id ?? null)
+    setUserEmail(data.user?.email ?? null)
+  })
+  setTempBillId(crypto.randomUUID())
+  setCatLoading(true)
+  setCatError('')
+  fetch('/api/categories')
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
+    .then((data: (Category & { type?: string })[]) => {
+      const billCategories = data.filter(c => c.type !== 'SPENDING')
+      if (!Array.isArray(billCategories) || billCategories.length === 0) {
+        setCatError('No bill categories found.')
         setCategories([])
-      })
-      .finally(() => setCatLoading(false))
-  }, [isOpen])
+      } else {
+        setCategories(billCategories)
+      }
+    })
+    .catch(() => {
+      setCatError('Failed to load categories.')
+      setCategories([])
+    })
+    .finally(() => setCatLoading(false))
+}, [isOpen])
 
   const handleAIParse = async () => {
     if (!aiText.trim()) return

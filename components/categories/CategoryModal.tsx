@@ -1,3 +1,4 @@
+// components/categories/CategoryModal.tsx — full file
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -7,11 +8,14 @@ import { Button } from '@/components/ui/button'
 import { ColorSwatchPicker } from '@/components/ui/color-swatch-picker'
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll'
 
+type CategoryType = 'BILL' | 'SPENDING'
+
 type Category = {
   id: string
   name: string
   icon: string | null
   color: string | null
+  type?: CategoryType
 }
 
 const inputStyle: React.CSSProperties = {
@@ -38,7 +42,7 @@ export default function CategoryModal({ category, isOpen, onClose, onSuccess }: 
   onClose: () => void
   onSuccess: () => void
 }) {
-  const [form, setForm] = useState({ name: '', icon: '', color: '#3b82f6' })
+  const [form, setForm] = useState({ name: '', icon: '', color: '#3b82f6', type: 'BILL' as CategoryType })
   const [loading, setLoading] = useState(false)
 
   const isEdit = !!category
@@ -48,9 +52,14 @@ export default function CategoryModal({ category, isOpen, onClose, onSuccess }: 
   useEffect(() => {
     if (!isOpen) return
     if (category) {
-      setForm({ name: category.name, icon: category.icon ?? '', color: category.color ?? '#3b82f6' })
+      setForm({
+        name: category.name,
+        icon: category.icon ?? '',
+        color: category.color ?? '#3b82f6',
+        type: category.type ?? 'BILL',
+      })
     } else {
-      setForm({ name: '', icon: '', color: '#3b82f6' })
+      setForm({ name: '', icon: '', color: '#3b82f6', type: 'BILL' })
     }
   }, [isOpen, category])
 
@@ -63,7 +72,7 @@ export default function CategoryModal({ category, isOpen, onClose, onSuccess }: 
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name, icon: form.icon || null, color: form.color || null }),
+        body: JSON.stringify({ name: form.name, icon: form.icon || null, color: form.color || null, type: form.type }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to save category')
@@ -103,6 +112,32 @@ export default function CategoryModal({ category, isOpen, onClose, onSuccess }: 
           <div>
             <label style={labelStyle}>Color</label>
             <ColorSwatchPicker value={form.color} onChange={color => setForm(p => ({ ...p, color }))} />
+          </div>
+          <div>
+            <label style={labelStyle}>How is this category tracked?</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(['BILL', 'SPENDING'] as CategoryType[]).map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setForm(p => ({ ...p, type: t }))}
+                  style={{
+                    flex: 1, padding: '10px', borderRadius: '8px', cursor: 'pointer',
+                    border: form.type === t ? '1.5px solid #3b82f6' : '0.5px solid var(--border-strong)',
+                    background: form.type === t ? 'rgba(59,130,246,0.1)' : 'transparent',
+                    color: form.type === t ? '#60a5fa' : 'var(--text-secondary)',
+                    fontSize: '12px', fontWeight: 500,
+                  }}
+                >
+                  {t === 'BILL' ? '📄 Fixed Bill' : '🛒 Ongoing Spending'}
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: 1.5 }}>
+              {form.type === 'BILL'
+                ? 'Fixed amount due on a date (Rent, Internet). Mark as paid in full.'
+                : 'A monthly budget you spend from gradually (Groceries, Transportation). Log individual expenses.'}
+            </p>
           </div>
         </div>
 

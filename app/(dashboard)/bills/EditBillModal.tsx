@@ -72,10 +72,15 @@ export default function EditBillModal({ bill, onClose, onSuccess }: {
   useLockBodyScroll(!!bill)
 
   useEffect(() => {
-    if (!bill) return
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null)
-      setUserEmail(data.user?.email ?? null)
+  if (!bill) return
+  supabase.auth.getUser().then(({ data }) => {
+    setUserId(data.user?.id ?? null)
+    setUserEmail(data.user?.email ?? null)
+  })
+  fetch('/api/categories')
+    .then(r => r.json())
+    .then((data: (Category & { type?: string })[]) => {
+      setCategories(data.filter(c => c.type !== 'SPENDING'))
     })
     fetch('/api/categories').then(r => r.json()).then(setCategories)
     setForm({

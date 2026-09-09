@@ -19,16 +19,17 @@ export async function GET() {
     })
 
     await prisma.category.createMany({
-      data: [
-        { name: 'Rent', icon: '🏠', color: '#3B82F6', userId: user.id },
-        { name: 'Electricity', icon: '⚡', color: '#F59E0B', userId: user.id },
-        { name: 'Water', icon: '💧', color: '#06B6D4', userId: user.id },
-        { name: 'Internet', icon: '📶', color: '#8B5CF6', userId: user.id },
-        { name: 'School Fees', icon: '🎓', color: '#10B981', userId: user.id },
-        { name: 'Groceries', icon: '🛒', color: '#F97316', userId: user.id },
-      ],
-      skipDuplicates: true,
-    })
+  data: [
+    { name: 'Rent', icon: '🏠', color: '#3B82F6', userId: user.id, type: 'BILL' },
+    { name: 'Electricity', icon: '⚡', color: '#F59E0B', userId: user.id, type: 'BILL' },
+    { name: 'Water', icon: '💧', color: '#06B6D4', userId: user.id, type: 'BILL' },
+    { name: 'Internet', icon: '📶', color: '#8B5CF6', userId: user.id, type: 'BILL' },
+    { name: 'School Fees', icon: '🎓', color: '#10B981', userId: user.id, type: 'BILL' },
+    { name: 'Groceries', icon: '🛒', color: '#F97316', userId: user.id, type: 'SPENDING' },
+    { name: 'Other', icon: '🧾', color: '#94a3b8', userId: user.id, type: 'SPENDING' },
+  ],
+  skipDuplicates: true,
+})
 
     return NextResponse.json({ success: true })
   } catch (error) {

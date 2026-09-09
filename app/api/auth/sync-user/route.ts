@@ -29,7 +29,8 @@ export async function POST(req: Request) {
           { name: 'Water',       icon: '💧', color: '#06B6D4', userId: id },
           { name: 'Internet',    icon: '📶', color: '#8B5CF6', userId: id },
           { name: 'School Fees', icon: '🎓', color: '#10B981', userId: id },
-          { name: 'Groceries',   icon: '🛒', color: '#F97316', userId: id },
+          { name: 'Groceries',   icon: '🛒', color: '#F97316', userId: id, type: 'SPENDING' },
+          { name: 'Other',       icon: '🧾', color: '#94a3b8', userId: id, type: 'SPENDING' },
         ],
       })
     } else {
