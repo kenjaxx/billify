@@ -21,13 +21,6 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const { month, year } = parseMonthYear(searchParams.get('month'), searchParams.get('year'))
 
-    // Only return budgets tied to BILL categories here. Spending-goal
-    // budgets (SPENDING category, created from the Goals section on the
-    // Budgets page) are fetched separately via /api/expenses/summary.
-    // Without this filter, a spending goal showed up a SECOND time here
-    // as a stray "budget" card whose spend is computed from Bills
-    // (always ₱0) instead of Expenses — which is why it looked like it
-    // was reset to 0/8000 even though money had been logged against it.
     const budgets = await prisma.budget.findMany({
       where: { userId: user.id, month, year, category: { type: 'BILL' } },
       include: { category: true },
